@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOKCONNECT 북커넥트</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* 기본 스타일 리셋 및 폰트 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+        }
+
+        body {
+            background-color: #f4ede1;
+            color: #333;
+        }
+
+        /* 헤더 영역 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background-color: #e8ded1;
+            position: relative;
+            z-index: 500;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #388ba8;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo span {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 30px;
+            padding: 5px 20px;
+            width: 500px;
+            position: relative;
+        }
+
+        .search-bar input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 16px;
+            padding: 10px;
+        }
+        
+        #suggestions { 
+            position: absolute; top: 55px; left: 0; width: 100%; 
+            border: 1px solid #ccc; border-radius: 8px; background: white; max-height: 400px; 
+            overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10;
+        }
+        .suggestion-item { 
+            padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; 
+            transition: background 0.2s; text-align: left; color: #333; 
+            display: flex; align-items: center; gap: 15px;
+        }
+        .suggestion-item:hover { background-color: #f8f9fa; }
+        .suggestion-item img {
+            width: 45px; height: 65px; object-fit: cover; border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .suggestion-item .sg-info {
+            display: flex; flex-direction: column; gap: 5px; justify-content: center;
+        }
+        .suggestion-item .sg-title {
+            font-size: 15px; font-weight: bold; color: #111;
+        }
+        .suggestion-item .sg-author {
+            font-size: 13px; color: #666;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .header-icons div {
+            width: 40px;
+            height: 40px;
+            background-color: #f7ce7a;
+            border-radius: 50%;
+        }
+
+        /* 메인 컨테이너 레이아웃 */
+        .container {
+            display: flex;
+            padding: 30px 40px;
+            gap: 30px;
+        }
+
+        .main-content {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .top-sections {
+            display: flex;
+            gap: 20px;
+        }
+
+        .community-box {
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .community-box h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .tabs span {
+            background: #e8a867;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        #hot-book-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px 15px;
+        }
+
+        #new-book-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px 15px;
+        }
+
+        .login-box {
+            background-color: #f8e4b7;
+            padding: 30px 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .login-box h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 2px solid #000;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #e5bd6f;
+            border: none;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .favorites-box {
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .favorite-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .favorite-item .info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .favorite-item .info div {
+            font-weight: bold;
+        }
+
+        .heart {
+            color: red;
+            font-size: 20px;
+        }
+
+        .genre-container {
+            display: flex;
+            gap: 30px;
+            padding: 0 40px;
+            margin-top: 20px;
+            margin-bottom: 50px;
+        }
+
+        .genre-section {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .genre-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .genre-header h3 {
+            font-size: 24px;
+        }
+
+        .genre-header .more-btn {
+            color: #666;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .genre-list {
+            display: flex;
+            gap: 15px;
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        .genre-list::-webkit-scrollbar {
+            height: 8px;
+        }
+        .genre-list::-webkit-scrollbar-thumb {
+            background-color: #e5bd6f;
+            border-radius: 4px;
+        }
+        .genre-list::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+
+        .genre-item {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .genre-item .book-cover {
+            width: 120px;
+            height: 180px;
+            background-color: transparent;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .genre-item .book-cover:hover {
+            transform: translateY(-3px);
+        }
+
+        .genre-item .book-title {
+            font-size: 13px;
+            color: #333;
+            text-align: left;
+            line-height: 1.3;
+            font-weight: bold;
+        }
+
+        .floating-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: #e5bd6f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #searchDetailModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #f4ede1; display: none; z-index: 2000; overflow-y: auto;
+        }
+        .full-page-header {
+            display: flex; align-items: center; justify-content: flex-start;
+            padding: 20px 40px; background-color: #e8ded1;
+        }
+        .full-page-header .back-btn {
+            font-size: 18px; font-weight: bold; background: none; border: none; cursor: pointer; color: #555;
+            display: flex; align-items: center; transition: color 0.2s;
+        }
+        .full-page-header .back-btn:hover { color: #000; }
+        .search-detail-content {
+            background-color: #fff; width: 90%; max-width: 1000px; margin: 40px auto;
+            border-radius: 10px; padding: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative; text-align: left;
+        }
+        .book-header { display: flex; gap: 30px; margin-bottom: 20px; }
+        .book-cover-img { width: 180px; object-fit: cover; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .book-info-txt h2 { margin-top: 0; margin-bottom: 15px; font-size: 28px; color: #222; }
+        .book-info-txt p { margin-bottom: 5px; font-size: 16px; color: #555; }
+        .section-title { margin-top: 30px; border-bottom: 2px solid #e5bd6f; padding-bottom: 5px; color: #333; font-size: 20px;}
+        .content-box { line-height: 1.8; color: #444; margin-top: 15px; white-space: pre-wrap; font-size: 15px; }
+
+        .create-community-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #388ba8;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 20px;
+        }
+
+        .create-community-btn:hover {
+            background-color: #2a6a8a;
+            transform: translateY(-2px);
+        }
+
+        .create-community-btn:active {
+            transform: translateY(0);
+        }
+
+        .book-info-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .detail-modal-content {
+            background-color: #fdf5e6;
+            width: 80%;
+            max-width: 900px;
+            height: 80%;
+            border-radius: 10px;
+            padding: 30px;
+            position: relative;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+        }
+
+        .detail-modal-content .modal-book {
+            background-color: #ddd;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .create-modal-content {
+            background-color: #fdf5e6;
+            width: 70%;
+            max-width: 800px;
+            height: 60%;
+            border-radius: 10px;
+            padding: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .create-modal-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+
+        .create-modal-search {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 30px;
+            padding: 5px 20px;
+            width: 60%;
+            margin-bottom: 40px;
+        }
+
+        .create-modal-search input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 18px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .create-modal-info {
+            font-size: 18px;
+            color: #555;
+            line-height: 1.8;
+            font-weight: bold;
+        }
+
+        .text-red {
+            color: #d32f2f;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* ===== 커뮤니티 페이지 스타일 ===== */
+        #communityPage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fdfaf0;
+            display: none;
+            overflow-y: auto;
+            z-index: 1500;
+        }
+
+        .community-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 40px;
+            background-color: #f4ebd0;
+            border-bottom: 2px solid #e0d5b5;
+        }
+
+        .community-logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 24px;
+            color: #008080;
+        }
+
+        .community-logo-icon {
+            width: 50px;
+            height: 50px;
+            background-color: #ccc;
+            border-radius: 50%;
+        }
+
+        .community-search-bar {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            border: 2px solid #333;
+            border-radius: 30px;
+            padding: 5px 15px;
+            width: 400px;
+        }
+
+        .community-search-bar input {
+            border: none;
+            outline: none;
+            flex-grow: 1;
+            padding: 5px;
+            font-size: 16px;
+        }
+
+        .community-search-icon {
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .community-user-actions {
+            display: flex;
+            gap: 15px;
+            font-size: 30px;
+            color: #a89f83;
+            cursor: pointer;
+        }
+
+        .community-main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .back-to-main-btn {
+            font-size: 24px;
+            color: #388ba8;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: inline-block;
+            font-weight: bold;
+            background: none;
+            border: none;
+        }
+
+        .back-to-main-btn:hover {
+            color: #2a6a8a;
+        }
+
+        .top-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .book-cover {
+            width: 200px;
+            height: 280px;
+            background-color: #ddd;
+            border-radius: 10px;
+            box-shadow: 2px 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .info-box {
+            background-color: #f4ebd0;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+            flex: 1;
+        }
+
+        .community-info {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .heart-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.3s;
+            background: none;
+            border: none;
+        }
+
+        .heart-btn.active {
+            color: #e74c3c;
+        }
+
+        .middle-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
+
+        .community-tabs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            padding: 10px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #e5cd8d;
+            border: 2px solid #b8a268;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 2px 4px 0px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .tab-btn.active {
+            background-color: #d4bc7c;
+            transform: translateY(2px);
+            box-shadow: 0px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .write-btn {
+            padding: 8px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #fdfaf0;
+            border: 2px solid #e5cd8d;
+            border-radius: 20px;
+            cursor: pointer;
+            color: #555;
+        }
+
+        .write-btn:hover {
+            background-color: #e5cd8d;
+            color: #333;
+        }
+
+        .board-section {
+            border-top: 3px solid #e5cd8d;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        th {
+            padding: 15px 10px;
+            border-bottom: 2px solid #e5cd8d;
+            color: #666;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #ddd;
+            color: #444;
+        }
+
+        .title-cell {
+            text-align: left;
+            padding-left: 20px;
+            cursor: pointer;
+            color: #000;
+            font-weight: 500;
+        }
+
+        .title-cell:hover {
+            text-decoration: underline;
+            color: #0056b3;
+        }
+
+        .empty-row td {
+            padding: 40px;
+            color: #999;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1600;
+        }
+
+        .modal-container {
+            background: #fff;
+            width: 800px;
+            max-width: 90%;
+            max-height: 90vh;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .write-header {
+            border-bottom: 1px solid #ddd;
+            padding: 15px;
+        }
+
+        .write-header input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .write-toolbar {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .write-toolbar span {
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .write-body {
+            flex: 1;
+            padding: 0;
+        }
+
+        .write-body textarea {
+            width: 100%;
+            height: 350px;
+            border: none;
+            padding: 15px;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+        }
+
+        .write-footer {
+            padding: 15px;
+            background: #f1f1f1;
+            text-align: right;
+            border-top: 1px solid #ddd;
+        }
+
+        .write-footer button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .btn-cancel {
+            background: #666;
+            color: #fff;
+            margin-right: 10px;
+        }
+
+        .btn-submit {
+            background: #3b4890;
+            color: #fff;
+        }
+
+        .view-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .view-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #222;
+        }
+
+        .view-meta {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .view-body {
+            padding: 20px;
+            min-height: 300px;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .view-footer {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            text-align: right;
+        }
+
+        .btn-close {
+            padding: 8px 20px;
+            background: #ddd;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .bottom-info {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .bottom-info-item {
+            flex: 1;
+        }
+
+        .bottom-info-item h3 {
+            margin-bottom: 10px;
+        }
+
+        .bottom-info-item p {
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 메인 페이지 헤더 -->
+    <header id="mainHeader">
+        <div class="logo">
+            BOOKCONNECT
+            <span>북커넥트</span>
+        </div>
+        <div class="search-bar">
+            <span>📖</span>
+            <input type="text" id="searchQuery" placeholder="도서 이름을 입력해 주세요" oninput="handleInput()" onkeydown="if(event.key==='Enter') handleInput()" autocomplete="off">
+            <span style="cursor: pointer;" onclick="handleInput()">🔍</span>
+            <div id="suggestions"></div>
+            <div id="loading" style="display:none; position:absolute; top:55px; right:15px; color:#888; font-size:12px; z-index:11;">가져오는 중...</div>
+        </div>
+        <div class="header-icons">
+            <div title="사용자 정보"></div>
+            <div title="설정"></div>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="container" id="mainContainer">
+        <div class="main-content">
+            <div class="top-sections">
+                <div class="community-box">
+                    <h2>
+                        <div style="display: flex; align-items: baseline; gap: 5px;">HOT <small>Community</small></div>
+                        <div class="tabs" id="hot-tabs">
+                            <span onclick="loadHotCommunity('소설')">소설</span> 
+                            <span onclick="loadHotCommunity('전공')">전공</span> 
+                            <span onclick="loadHotCommunity('만화')">만화</span>
+                        </div>
+                    </h2>
+                    <div class="book-grid" id="hot-book-grid"></div>
+                </div>
+
+                <div class="community-box">
+                    <h2>
+                        <div style="display: flex; align-items: baseline; gap: 5px;">NEW <small>Community</small></div>
+                    </h2>
+                    <div class="book-grid" id="new-book-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="login-box">
+                <h2>로그인</h2>
+                <input type="text" placeholder="ID">
+                <input type="password" placeholder="Password">
+                <button>로그인</button>
+            </div>
+
+            <div class="favorites-box">
+                <h2>즐겨찾기</h2>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>아몬드<br><small>손원평</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>WICKED KING<br><small>Nikores nessy</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>마션<br><small>앤디위어</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 카테고리 -->
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>소설</h3>
+                <div class="more-btn" onclick="openDetailModal('소설')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="novel-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>만화</h3>
+                <div class="more-btn" onclick="openDetailModal('만화')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="comic-list"></div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>에세이</h3>
+                <div class="more-btn" onclick="openDetailModal('에세이')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="essay-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>교양</h3>
+                <div class="more-btn" onclick="openDetailModal('교양')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="culture-list"></div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>참고서</h3>
+                <div class="more-btn" onclick="openDetailModal('참고서')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="reference-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>어학</h3>
+                <div class="more-btn" onclick="openDetailModal('어학')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="language-list"></div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>실용</h3>
+                <div class="more-btn" onclick="openDetailModal('실용')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="practical-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>아동</h3>
+                <div class="more-btn" onclick="openDetailModal('아동')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="kids-list"></div>
+        </div>
+    </div>
+
+    <!-- 플로팅 버튼 -->
+    <div class="floating-btn" title="커뮤니티 생성" onclick="openCreateModal()">+</div>
+
+    <!-- 자세히 보기 모달 -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="detail-modal-content" id="detailModalContent">
+            <button class="close-btn" onclick="closeModals()" style="z-index: 10;">X</button>
+        </div>
+    </div>
+
+    <!-- 커뮤니티 생성 모달 -->
+    <div class="modal-overlay" id="createModal">
+        <div class="create-modal-content">
+            <button class="close-btn" onclick="closeModals()">X</button>
+            <h2>커뮤니티 개설</h2>
+            <div class="create-modal-search">
+                <span>📖</span>
+                <input type="text" placeholder="도서 이름을 입력해 주세요">
+                <span>🔍</span>
+            </div>
+            <div class="create-modal-info">
+                <p>현재 <span class="text-red">2026년 3월 18일</span>까지 출판된 도서의 정보가 업데이트 되었습니다.</p>
+                <p><span class="text-red">책 한 권 당 하나의 커뮤니티만</span> 개설 가능합니다.</p>
+                <p>중복된 커뮤니티를 발견하셨다면 010-xxxx-xxxx로 연락 바랍니다.</p>
+                <br>
+                <p><span class="text-red">커뮤니티 생성 시 2포인트</span>를 얻을 수 있습니다. (하루에 3번 제한)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 검색된 책 상세정보 -->
+    <div id="searchDetailModal">
+        <div class="full-page-header">
+            <button class="back-btn" onclick="closeSearchModal()">← 뒤로 가기</button>
+        </div>
+        <div class="search-detail-content">
+            <div class="book-header">
+                <img id="detailCover" class="book-cover-img" src="" alt="표지">
+                <div class="book-info-container">
+                    <div class="book-info-txt">
+                        <h2 id="detailTitle">제목</h2>
+                        <h4 id="detailSubTitle" style="color: #666; font-size: 16px; margin-top: -10px; margin-bottom: 20px; font-weight: normal; display: none;">부제</h4>
+                        <p><strong>저자:</strong> <span id="detailAuthor"></span></p>
+                        <p><strong>출판사:</strong> <span id="detailPublisher"></span></p>
+                        <p><strong>출간일:</strong> <span id="detailPubDate"></span></p>
+                    </div>
+                    <button class="create-community-btn" onclick="goCommunityPage()">
+                        ➕ 커뮤니티 생성
+                    </button>
+                </div>
+            </div>
+            
+            <h3 class="section-title">줄거리 (요약)</h3>
+            <div id="detailStory" class="content-box"></div>
+
+            <h3 class="section-title">목차</h3>
+            <div id="detailToc" class="content-box"></div>
+        </div>
+    </div>
+
+    <!-- ===== 커뮤니티 페이지 ===== -->
+    <div id="communityPage">
+        <div class="community-header">
+            <div class="community-logo-area">
+                <div class="community-logo-icon"></div>
+                <div>BOOKCONNECT<br><span style="font-size: 14px; color: #555;">북커넥트</span></div>
+            </div>
+            <div class="community-search-bar">
+                <span style="margin-right: 10px;">📖</span>
+                <input type="text" placeholder="도서 이름을 입력해 주세요">
+                <span class="community-search-icon">🔍</span>
+            </div>
+            <div class="community-user-actions"><span>👤</span><span>⚙️</span></div>
+        </div>
+
+        <div class="community-main">
+            <button class="back-to-main-btn" onclick="closeCommunityPage()">← 메인으로 돌아가기</button>
+            
+            <section class="top-section">
+                <div class="book-cover" id="communityBookCover"></div>
+                <div class="info-box book-info">
+                    <button class="heart-btn" id="heartBtn" onclick="toggleHeart()">♥</button>
+                    <h2 style="font-size: 24px; margin-bottom: 5px;" id="communityBookTitle">(도서 제목)</h2>
+                    <h4 style="color: #666; font-size: 16px; margin-bottom: 20px; font-weight: normal; display: none;" id="communityBookSubtitle">부제</h4>
+                    <p style="font-size: 18px; line-height: 1.6; color: #555; font-weight: bold;">
+                        저자: <span id="communityBookAuthor"></span><br> 
+                        출판사: <span id="communityBookPublisher"></span><br> 
+                        장르: <span id="communityBookCategory"></span><br> 
+                        출간일: <span id="communityBookPubDate"></span>
+                    </p>
+                </div>
+                <div class="info-box community-info">
+                    커뮤니티 개설일: <br> 최초 개설자: <br> 커뮤니티 매니저: <br> 방문자 수: <br> 즐겨찾기 수: <br><br>
+                    설명: (커뮤니티에 대한 설명이 들어갈 자리입니다.)
+                </div>
+            </section>
+
+            <section class="middle-section">
+                <div class="community-tabs">
+                    <button class="tab-btn active" onclick="changeTab(this)">💬 일반</button>
+                    <button class="tab-btn" onclick="changeTab(this)">⭐ 추천</button>
+                    <button class="tab-btn" onclick="changeTab(this)">Q&A 질문</button>
+                </div>
+                <button class="write-btn" onclick="openWriteModal()">글쓰기</button>
+            </section>
+
+            <section class="board-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">번호</th>
+                            <th style="width: 60%;">제목</th>
+                            <th style="width: 15%;">글쓴이</th>
+                            <th style="width: 15%;">조회수</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boardBody">
+                        <tr class="empty-row" id="emptyRow">
+                            <td colspan="4">등록된 게시물이 없습니다. '글쓰기' 버튼을 눌러 작성해보세요.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="bottom-info">
+                <div class="bottom-info-item">
+                    <h3>책소개</h3>
+                    <p>(책 소개 내용이 비워져 있습니다.)</p>
+                    <h3 style="margin-top: 20px;">작가 정보</h3>
+                    <p>(작가 정보가 비워져 있습니다.)</p>
+                </div>
+                <div class="bottom-info-item"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- 글쓰기 모달 -->
+    <div id="writeModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="write-header">
+                <input type="text" id="postTitle" placeholder="제목을 입력해 주세요.">
+                <p style="font-size: 11px; color: #888; margin-top: 5px;">※ 음란물, 차별, 비하, 혐오 및 초상권 침해 게시물은 책임을 질 수 있습니다.</p>
+            </div>
+            <div class="write-toolbar">
+                <span>📷 이미지</span>
+                <span>🎥 동영상</span>
+                <span>🔗 링크</span>
+                <span>B</span> <span>I</span> <span>U</span>
+            </div>
+            <div class="write-body">
+                <textarea id="postContent" placeholder="내용을 입력하세요."></textarea>
+            </div>
+            <div class="write-footer">
+                <button class="btn-cancel" onclick="closeWriteModal()">취소</button>
+                <button class="btn-submit" onclick="submitPost()">등록</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 게시글 보기 모달 -->
+    <div id="viewModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="view-header">
+                <div id="viewTitle" class="view-title">제목이 여기에 표시됩니다.</div>
+                <div id="viewMeta" class="view-meta">작성자 | 작성시간</div>
+            </div>
+            <div class="view-body" id="viewContent">
+                내용이 여기에 표시됩니다.
+            </div>
+            <div class="view-footer">
+                <button class="btn-close" onclick="closeViewModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const detailModal = document.getElementById("detailModal");
+        const createModal = document.getElementById("createModal");
+        const communityPage = document.getElementById("communityPage");
+
+        // 커뮤니티 페이지 데이터
+        let posts = [];
+        let postCounter = 100000;
+        const currentUser = "youdonghyeon06";
+        const currentDate = "2026.04.14";
+        let selectedBook = null; // 선택된 책 정보 저장
+
+        // ========== 메인 페이지 기능 ==========
+        function getCategoryKeywords(category) {
+            switch(category) {
+                case '소설': return ['현대 소설', '소설 베스트셀러'];
+                case '만화': return ['만화', '코믹스', '웹툰', '순정만화', '그래픽노블'];
+                case '에세이': return ['에세이 베스트셀러', '산문'];
+                case '교양': return ['경제경영', '자기계발', '인문학'];
+                case '참고서': return ['수험서', '자격증', '고등학교 참고서'];
+                case '어학': return ['ELT', '해외 대학교재'];
+                case '실용': return ['컴퓨터/모바일', '기계공학', '전기/전자공학'];
+                case '아동': return ['어린이', '유아'];
+                default: return [category];
+            }
+        }
+
+        async function openDetailModal(category) {
+            detailModal.style.display = "flex";
+            const modalContent = document.getElementById("detailModalContent");
+            const existingBooks = modalContent.querySelectorAll('.modal-book');
+            existingBooks.forEach(b => b.remove());
+
+            const loadingText = document.createElement('div');
+            loadingText.className = 'modal-book';
+            loadingText.style.gridColumn = '1 / -1';
+            loadingText.style.textAlign = 'center';
+            loadingText.innerText = '로딩 중...';
+            modalContent.appendChild(loadingText);
+
+            try {
+                const keywords = getCategoryKeywords(category);
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+                
+                loadingText.remove();
+                
+                if (allItems.length > 0) {
+                    const uniqueItems = Array.from(new Map(allItems.map(book => [book.isbn13 || book.isbn, book])).values());
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 18);
+                    
+                    while(selected.length < 18 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    selected.forEach(book => {
+                        const div = document.createElement('div');
+                        div.className = 'modal-book';
+                        div.style.padding = '0';
+                        div.style.border = 'none';
+                        div.style.backgroundColor = 'transparent';
+                        div.style.overflow = 'hidden';
+                        
+                        div.innerHTML = `<img src="${book.cover}" alt="${book.title}" title="${book.title}" style="width:100%; height:100%; object-fit:cover; border-radius:5px; cursor:pointer;" onclick="closeModals(); fetchBookDetail('${book.isbn13 || book.isbn}')">`;
+                        modalContent.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openCreateModal() {
+            createModal.style.display = "flex";
+        }
+
+        function closeModals() {
+            detailModal.style.display = "none";
+            createModal.style.display = "none";
+        }
+
+        function closeSearchModal() {
+            document.getElementById("searchDetailModal").style.display = "none";
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadHotCommunity('소설');
+            loadNewCommunity();
+            loadGenreBooks('소설', 'novel-list');
+            loadGenreBooks('만화', 'comic-list');
+            loadGenreBooks('에세이', 'essay-list');
+            loadGenreBooks('교양', 'culture-list');
+            loadGenreBooks('참고서', 'reference-list');
+            loadGenreBooks('어학', 'language-list');
+            loadGenreBooks('실용', 'practical-list');
+            loadGenreBooks('아동', 'kids-list');
+        });
+
+        async function loadHotCommunity(tabName) {
+            const grid = document.getElementById('hot-book-grid');
+            grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">로딩 중...</div>';
+            
+            const tabs = document.querySelectorAll('#hot-tabs span');
+            tabs.forEach(tab => {
+                if (tab.innerText === tabName) {
+                    tab.style.background = '#d89047';
+                    tab.style.fontWeight = 'bold';
+                } else {
+                    tab.style.background = '#e8a867';
+                    tab.style.fontWeight = 'normal';
+                }
+            });
+
+            let keywords = [];
+            if (tabName === '소설') {
+                keywords = ['에세이', '문학', '소설'];
+            } else if (tabName === '전공') {
+                keywords = ['참고서', '어학', '실용'];
+            } else if (tabName === '만화') {
+                keywords = ['만화', '웹툰', '만화 베스트셀러', '소년만화', '순정만화'];
+            }
+
+            try {
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 6);
+                    
+                    while(selected.length < 6 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    grid.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+                        
+                        const rating = Math.round(book.customerReviewRank || 0);
+                        const fullStars = Math.floor(rating / 2);
+                        const hasHalfStar = (rating % 2) !== 0;
+                        
+                        let starsHtml = '';
+                        for(let i=0; i<5; i++) {
+                            if (i < fullStars) {
+                                starsHtml += '<span style="color:#e8a867;">★</span>';
+                            } else if (i === fullStars && hasHalfStar) {
+                                starsHtml += '<span style="position:relative; display:inline-block;"><span style="color:#aaa;">★</span><span style="color:#e8a867; position:absolute; left:0; top:0; width:50%; overflow:hidden;">★</span></span>';
+                            } else {
+                                starsHtml += '<span style="color:#aaa;">★</span>';
+                            }
+                        }
+
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '8px';
+                        
+                        div.innerHTML = `
+                            <img src="${book.cover}" alt="${mainTitle}" title="${mainTitle}" style="width:100%; aspect-ratio: 3/4; object-fit:cover; border-radius:5px; cursor:pointer; background:#fff; border:1px solid #ddd; box-shadow: 2px 3px 6px rgba(0,0,0,0.08);" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                            <div style="font-size:15px; color:#111; font-weight:bold; line-height:1.3; text-align:left;">${displayTitle}</div>
+                            <div style="font-size:16px; margin-top:-5px; letter-spacing:-1px; text-align:left;">${starsHtml}</div>
+                        `;
+                        grid.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadNewCommunity() {
+            const grid = document.getElementById('new-book-grid');
+            grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">로딩 중...</div>';
+            
+            const keywords = ['신간', '종합 베스트셀러', '소설 만화 기대작', '에세이 신간', '교양 추천'];
+
+            try {
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 4);
+                    
+                    while(selected.length < 4 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    grid.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '8px';
+                        
+                        div.innerHTML = `
+                            <div style="position: relative; overflow: hidden; border-radius: 5px; cursor: pointer; box-shadow: 2px 3px 6px rgba(0,0,0,0.08); border: 1px solid #ddd;" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                                <img src="${book.cover}" alt="${mainTitle}" title="${mainTitle}" style="width:100%; aspect-ratio: 3/4; object-fit:cover; display:block; background:#fff;">
+                                <div style="position: absolute; top: 12px; right: -30px; background: #c63031; color: white; padding: 2px 30px; font-size: 13px; font-weight: bold; transform: rotate(45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NEW!</div>
+                            </div>
+                            <div style="font-size:15px; color:#111; font-weight:bold; line-height:1.3; text-align:left;">${displayTitle}</div>
+                        `;
+                        grid.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadGenreBooks(category, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '<div style="color: #666; font-size: 14px;">표지를 불러오는 중입니다...</div>';
+
+            try {
+                const keywords = getCategoryKeywords(category);
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 4);
+                    
+                    while(selected.length < 4 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    container.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'genre-item';
+                        
+                        div.innerHTML = `
+                            <img src="${book.cover}" class="book-cover" alt="${mainTitle}" title="${mainTitle}" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                            <div class="book-title">${displayTitle}</div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target == detailModal || event.target == createModal) {
+                closeModals();
+            }
+        }
+
+        const supabaseUrl = 'https://qbmebyimhpglrvtqnkwa.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibWVieWltaHBnbHJ2dHFua3dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MjA5MzMsImV4cCI6MjA5MTI5NjkzM30.S3AKKMNaz9iJLb6NQL_P84Dft1Y7sWb-7lFXEuhTkTI';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let debounceTimer;
+
+        function handleInput() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const suggestionsDiv = document.getElementById('suggestions');
+            const loadingDiv = document.getElementById('loading');
+            
+            if (!query) {
+                suggestionsDiv.style.display = 'none';
+                loadingDiv.style.display = 'none';
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const { data, error } = await supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: query }
+                    });
+
+                    loadingDiv.style.display = 'none';
+                    if (error) throw error;
+
+                    if (data && data.item && data.item.length > 0) {
+                        suggestionsDiv.innerHTML = '';
+                        data.item.forEach(book => {
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            
+                            let cleanAuthor = book.author || '저자 미상';
+                            if (cleanAuthor.includes('(지은이)')) {
+                                cleanAuthor = cleanAuthor.split('(지은이)')[0].trim();
+                            }
+                            
+                            let mainTitle = book.title;
+                            if (mainTitle.includes(' - ')) {
+                                mainTitle = mainTitle.split(' - ')[0].trim();
+                            }
+                            
+                            div.innerHTML = `
+                                <img src="${book.cover}" alt="book cover">
+                                <div class="sg-info">
+                                    <div class="sg-title">${mainTitle}</div>
+                                    <div class="sg-author">${cleanAuthor} · ${book.publisher}</div>
+                                </div>
+                            `;
+                            
+                            div.onclick = () => {
+                                document.getElementById('searchQuery').value = mainTitle;
+                                suggestionsDiv.style.display = 'none';
+                                fetchBookDetail(book.isbn13 || book.isbn);
+                            };
+                            suggestionsDiv.appendChild(div);
+                        });
+                        suggestionsDiv.style.display = 'block';
+                    }
+                } catch (err) {
+                    loadingDiv.style.display = 'none';
+                    console.error('검색 오류:', err);
+                }
+            }, 500); 
+        }
+
+        async function fetchBookDetail(isbn, isPopState = false) {
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.style.display = 'block';
+
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('aladin', {
+                    body: { type: 'lookup', itemId: isbn }
+                });
+
+                loadingDiv.style.display = 'none';
+                if (error) throw error;
+
+                if (data && data.item && data.item.length > 0) {
+                    const book = data.item[0];
+                    const subInfo = book.subInfo || {};
+
+                    document.getElementById('detailCover').src = book.cover || '';
+
+                    let mainTitle = book.title;
+                    let subTitle = subInfo.subTitle || "";
+
+                    if (mainTitle.includes(' - ')) {
+                        let parts = book.title.split(' - ');
+                        mainTitle = parts[0].trim();
+                        if (!subTitle) subTitle = parts.slice(1).join(' - ').trim();
+                    }
+
+                    document.getElementById('detailTitle').textContent = mainTitle;
+                    const detailSubTitleEl = document.getElementById('detailSubTitle');
+                    
+                    if (subTitle) {
+                        detailSubTitleEl.textContent = subTitle;
+                        detailSubTitleEl.style.display = 'block';
+                    } else {
+                        detailSubTitleEl.style.display = 'none';
+                    }
+
+                    document.getElementById('detailAuthor').textContent = book.author || '저자 불명';
+                    document.getElementById('detailPublisher').textContent = book.publisher;
+                    document.getElementById('detailPubDate').textContent = book.pubDate;
+
+                    let story = book.description || '제공된 줄거리가 없습니다.';
+                    story = story.replace(/&lt;br\/&gt;/g, '<br>');
+                    document.getElementById('detailStory').innerHTML = story;
+                    
+                    let toc = subInfo.toc || '제공된 목차가 없습니다.';
+                    document.getElementById('detailToc').innerHTML = toc.replace(/\n/g, '<br>');
+
+                    // 선택된 책 정보 저장
+                    selectedBook = {
+                        title: mainTitle,
+                        subtitle: subTitle,
+                        author: book.author || '저자 불명',
+                        publisher: book.publisher,
+                        pubDate: book.pubDate,
+                        cover: book.cover || '',
+                        isbn: isbn,
+                        category: book.categoryName || '분류 미정'
+                    };
+
+                    document.getElementById('searchDetailModal').style.display = 'block';
+                    if (!isPopState) {
+                        const newUrl = window.location.pathname + '?detail=' + isbn;
+                        history.pushState({ detail: isbn }, '', newUrl);
+                    }
+                }
+            } catch (err) {
+                loadingDiv.style.display = 'none';
+                alert('상세 정보를 불러오는데 실패했습니다.');
+                console.error(err);
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-bar')) {
+                document.getElementById('suggestions').style.display = 'none';
+            }
+        });
+
+        // ========== 커뮤니티 페이지 기능 ==========
+        function goCommunityPage() {
+            document.getElementById('searchDetailModal').style.display = 'none';
+            communityPage.style.display = 'block';
+            
+            // 선택된 책 정보를 커뮤니티 페이지에 반영
+            if (selectedBook) {
+                document.getElementById('communityBookTitle').textContent = selectedBook.title;
+                document.getElementById('communityBookAuthor').textContent = selectedBook.author;
+                document.getElementById('communityBookPublisher').textContent = selectedBook.publisher;
+                document.getElementById('communityBookCategory').textContent = selectedBook.category;
+                document.getElementById('communityBookPubDate').textContent = selectedBook.pubDate;
+                
+                // 부제 표시
+                const subtitleEl = document.getElementById('communityBookSubtitle');
+                if (selectedBook.subtitle) {
+                    subtitleEl.textContent = selectedBook.subtitle;
+                    subtitleEl.style.display = 'block';
+                } else {
+                    subtitleEl.style.display = 'none';
+                }
+                
+                // 책 표지 이미지 설정
+                if (selectedBook.cover) {
+                    const coverDiv = document.getElementById('communityBookCover');
+                    coverDiv.style.backgroundImage = `url('${selectedBook.cover}')`;
+                    coverDiv.style.backgroundSize = 'cover';
+                    coverDiv.style.backgroundPosition = 'center';
+                }
+            }
+            
+            window.scrollTo(0, 0);
+        }
+
+        function closeCommunityPage() {
+            communityPage.style.display = 'none';
+        }
+
+        function toggleHeart() {
+            document.getElementById('heartBtn').classList.toggle('active');
+        }
+
+        function changeTab(clickedBtn) {
+            document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
+            clickedBtn.classList.add('active');
+        }
+
+        function openWriteModal() {
+            document.getElementById('writeModal').style.display = 'flex';
+            document.getElementById('postTitle').focus();
+        }
+
+        function closeWriteModal() {
+            document.getElementById('writeModal').style.display = 'none';
+            document.getElementById('postTitle').value = '';
+            document.getElementById('postContent').value = '';
+        }
+
+        function submitPost() {
+            const titleInput = document.getElementById('postTitle').value.trim();
+            const contentInput = document.getElementById('postContent').value.trim();
+
+            if (!titleInput) {
+                alert('제목을 입력해주세요.');
+                return;
+            }
+
+            const newPost = {
+                id: postCounter++,
+                title: titleInput,
+                content: contentInput,
+                author: currentUser,
+                date: currentDate,
+                views: 0
+            };
+
+            posts.unshift(newPost);
+            renderBoard();
+            closeWriteModal();
+        }
+
+        function renderBoard() {
+            const tbody = document.getElementById('boardBody');
+            tbody.innerHTML = '';
+
+            if (posts.length === 0) {
+                tbody.innerHTML = `<tr class="empty-row"><td colspan="4">등록된 게시물이 없습니다.</td></tr>`;
+                return;
+            }
+
+            posts.forEach(post => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${post.id}</td>
+                    <td class="title-cell" onclick="openViewModal(${post.id})">${post.title}</td>
+                    <td>${post.author}</td>
+                    <td>${post.views}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openViewModal(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (!post) return;
+
+            post.views++;
+            renderBoard();
+
+            document.getElementById('viewTitle').innerText = post.title;
+            document.getElementById('viewMeta').innerText = `${post.author} | ${post.date}`;
+            document.getElementById('viewContent').innerText = post.content;
+
+            document.getElementById('viewModal').style.display = 'flex';
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>

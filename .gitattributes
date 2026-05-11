@@ -1,0 +1,11 @@
+# 모든 텍스트 파일을 LF로 통일 (Vercel 배포 대비)
+* text eol=lf
+
+# 바이너리 파일들은 변환하지 않음
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mov binary
+*.mp4 binary

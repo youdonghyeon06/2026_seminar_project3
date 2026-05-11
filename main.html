@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOKCONNECT 북커넥트</title>
+    <!-- 수파베이스 모듈 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* 기본 스타일 리셋 및 폰트 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+        }
+
+        body {
+            background-color: #f4ede1;
+            color: #333;
+        }
+
+        /* 헤더 영역 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background-color: #e8ded1;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #388ba8;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo span {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 30px;
+            padding: 5px 20px;
+            width: 500px;
+            position: relative; /* 자동완성을 위한 상대 위치 */
+        }
+
+        .search-bar input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 16px;
+            padding: 10px;
+        }
+        
+        /* 자동완성 드롭다운 스타일 추가 */
+        #suggestions { 
+            position: absolute; top: 55px; left: 0; width: 100%; 
+            border: 1px solid #ccc; border-radius: 8px; background: white; max-height: 400px; 
+            overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10;
+        }
+        .suggestion-item { 
+            padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; 
+            transition: background 0.2s; text-align: left; color: #333; 
+            display: flex; align-items: center; gap: 15px;
+        }
+        .suggestion-item:hover { background-color: #f8f9fa; }
+        .suggestion-item img {
+            width: 45px; height: 65px; object-fit: cover; border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .suggestion-item .sg-info {
+            display: flex; flex-direction: column; gap: 5px; justify-content: center;
+        }
+        .suggestion-item .sg-title {
+            font-size: 15px; font-weight: bold; color: #111;
+        }
+        .suggestion-item .sg-author {
+            font-size: 13px; color: #666;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .header-icons div {
+            width: 40px;
+            height: 40px;
+            background-color: #f7ce7a;
+            border-radius: 50%;
+        }
+
+        /* 메인 컨테이너 레이아웃 */
+        .container {
+            display: flex;
+            padding: 30px 40px;
+            gap: 30px;
+        }
+
+        .main-content {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 상단 커뮤니티 섹션 */
+        .top-sections {
+            display: flex;
+            gap: 20px;
+        }
+
+        .community-box {
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .community-box h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .tabs span {
+            background: #e8a867;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        #hot-book-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px 15px;
+        }
+
+        #new-book-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px 15px;
+        }
+
+        .book-item {
+            background: #fff;
+            height: 150px;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* 로그인 폼 */
+        .login-box {
+            background-color: #f8e4b7;
+            padding: 30px 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .login-box h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 2px solid #000;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #e5bd6f;
+            border: none;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* 즐겨찾기 */
+        .favorites-box {
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .favorite-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .favorite-item .info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .favorite-item .info div {
+            font-weight: bold;
+        }
+
+        .heart {
+            color: red;
+            font-size: 20px;
+        }
+
+        /* 하단 장르 통합 컨테이너 (좌우 배치용) */
+        .genre-container {
+            display: flex;
+            gap: 30px;
+            padding: 0 40px;
+            margin-top: 20px;
+            margin-bottom: 50px;
+        }
+
+        /* 하단 장르 섹션 */
+        .genre-section {
+            flex: 1;
+            min-width: 0; /* 내부 요소가 넘치지 않게 */
+        }
+
+        .genre-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .genre-header h3 {
+            font-size: 24px;
+        }
+
+        .genre-header .more-btn {
+            color: #666;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .genre-list {
+            display: flex;
+            gap: 15px;
+            background-color: #f8e4b7;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        /* 스크롤바 디자인 (선택사항) */
+        .genre-list::-webkit-scrollbar {
+            height: 8px;
+        }
+        .genre-list::-webkit-scrollbar-thumb {
+            background-color: #e5bd6f;
+            border-radius: 4px;
+        }
+        .genre-list::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+
+        .genre-item {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .genre-item .book-cover {
+            width: 120px;
+            height: 180px;
+            background-color: transparent;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .genre-item .book-cover:hover {
+            transform: translateY(-3px);
+        }
+
+        .genre-item .book-title {
+            font-size: 13px;
+            color: #333;
+            text-align: left;
+            line-height: 1.3;
+            font-weight: bold;
+        }
+
+        /* 플로팅 버튼 (+) */
+        .floating-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: #e5bd6f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.2);
+        }
+
+        /* 모달(팝업) 공통 오버레이 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        /* 검색된 책 상세 정보 전체화면 */
+        #searchDetailModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #f4ede1; display: none; z-index: 2000; overflow-y: auto;
+        }
+        .full-page-header {
+            display: flex; align-items: center; justify-content: flex-start;
+            padding: 20px 40px; background-color: #e8ded1;
+        }
+        .full-page-header .back-btn {
+            font-size: 18px; font-weight: bold; background: none; border: none; cursor: pointer; color: #555;
+            display: flex; align-items: center; transition: color 0.2s;
+        }
+        .full-page-header .back-btn:hover { color: #000; }
+        .search-detail-content {
+            background-color: #fff; width: 90%; max-width: 1000px; margin: 40px auto;
+            border-radius: 10px; padding: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative; text-align: left;
+        }
+        .book-header { display: flex; gap: 30px; margin-bottom: 20px; }
+        .book-cover-img { width: 180px; object-fit: cover; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .book-info-txt h2 { margin-top: 0; margin-bottom: 15px; font-size: 28px; color: #222; }
+        .book-info-txt p { margin-bottom: 5px; font-size: 16px; color: #555; }
+        .section-title { margin-top: 30px; border-bottom: 2px solid #e5bd6f; padding-bottom: 5px; color: #333; font-size: 20px;}
+        .content-box { line-height: 1.8; color: #444; margin-top: 15px; white-space: pre-wrap; font-size: 15px; }
+
+        /* 커뮤니티 생성 버튼 */
+        .create-community-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #388ba8;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 20px;
+        }
+
+        .create-community-btn:hover {
+            background-color: #2a6a8a;
+            transform: translateY(-2px);
+        }
+
+        .create-community-btn:active {
+            transform: translateY(0);
+        }
+
+        .book-info-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .book-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        /* 기존 자세히 보기 모달 콘텐츠 */
+        .detail-modal-content {
+            background-color: #fdf5e6;
+            width: 80%;
+            max-width: 900px;
+            height: 80%;
+            border-radius: 10px;
+            padding: 30px;
+            position: relative;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+        }
+
+        .detail-modal-content .modal-book {
+            background-color: #ddd;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #555;
+        }
+
+        /* 새 커뮤니티 개설 모달 콘텐츠 */
+        .create-modal-content {
+            background-color: #fdf5e6;
+            width: 70%;
+            max-width: 800px;
+            height: 60%;
+            border-radius: 10px;
+            padding: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .create-modal-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+
+        .create-modal-search {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 30px;
+            padding: 5px 20px;
+            width: 60%;
+            margin-bottom: 40px;
+        }
+
+        .create-modal-search input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 18px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .create-modal-info {
+            font-size: 18px;
+            color: #555;
+            line-height: 1.8;
+            font-weight: bold;
+        }
+
+        .text-red {
+            color: #d32f2f;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 헤더 -->
+    <header>
+        <div class="logo">
+            BOOKCONNECT
+            <span>북커넥트</span>
+        </div>
+        <div class="search-bar">
+            <span>📖</span>
+            <input type="text" id="searchQuery" placeholder="도서 이름을 입력해 주세요" oninput="handleInput()" onkeydown="if(event.key==='Enter') handleInput()" autocomplete="off">
+            <span style="cursor: pointer;" onclick="handleInput()">🔍</span>
+            <!-- 검색어 자동완성 및 로딩 -->
+            <div id="suggestions"></div>
+            <div id="loading" style="display:none; position:absolute; top:55px; right:15px; color:#888; font-size:12px; z-index:11;">가져오는 중...</div>
+        </div>
+        <div class="header-icons">
+            <div title="사용자 정보"></div>
+            <div title="설정"></div>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="container">
+        <!-- 왼쪽 콘텐츠 영역 -->
+        <div class="main-content">
+            <div class="top-sections">
+                <div class="community-box">
+                    <h2>
+                        <div style="display: flex; align-items: baseline; gap: 5px;">HOT <small>Community</small></div>
+                        <div class="tabs" id="hot-tabs">
+                            <span onclick="loadHotCommunity('소설')">소설</span> 
+                            <span onclick="loadHotCommunity('전공')">전공</span> 
+                            <span onclick="loadHotCommunity('만화')">만화</span>
+                        </div>
+                    </h2>
+                    <div class="book-grid" id="hot-book-grid">
+                        <!-- 자바스크립트로 HOT 도서가 출력됩니다 -->
+                    </div>
+                </div>
+
+                <div class="community-box">
+                    <h2>
+                        <div style="display: flex; align-items: baseline; gap: 5px;">NEW <small>Community</small></div>
+                    </h2>
+                    <div class="book-grid" id="new-book-grid">
+                        <!-- 자바스크립트로 NEW 도서가 출력됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오른쪽 사이드바 영역 -->
+        <div class="sidebar">
+            <div class="login-box">
+                <h2>로그인</h2>
+                <input type="text" placeholder="ID">
+                <input type="password" placeholder="Password">
+                <button>로그인</button>
+            </div>
+
+            <div class="favorites-box">
+                <h2>즐겨찾기</h2>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>아몬드<br><small>손원평</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>WICKED KING<br><small>Nikores nessy</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+                <div class="favorite-item">
+                    <div class="info">
+                        <span>📚</span> <div>마션<br><small>앤디위어</small></div>
+                    </div>
+                    <span class="heart">❤️</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 카테고리 (가로 배치) -->
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>소설</h3>
+                <div class="more-btn" onclick="openDetailModal('소설')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="novel-list">
+                <!-- 자바스크립트로 소설 표지가 출력됩니다 -->
+            </div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>만화</h3>
+                <div class="more-btn" onclick="openDetailModal('만화')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="comic-list">
+                <!-- 자바스크립트로 만화 표지가 출력됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>에세이</h3>
+                <div class="more-btn" onclick="openDetailModal('에세이')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="essay-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>교양</h3>
+                <div class="more-btn" onclick="openDetailModal('교양')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="culture-list"></div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>참고서</h3>
+                <div class="more-btn" onclick="openDetailModal('참고서')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="reference-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>어학</h3>
+                <div class="more-btn" onclick="openDetailModal('어학')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="language-list"></div>
+        </div>
+    </div>
+
+    <div class="genre-container">
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>실용</h3>
+                <div class="more-btn" onclick="openDetailModal('실용')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="practical-list"></div>
+        </div>
+
+        <div class="genre-section">
+            <div class="genre-header">
+                <h3>아동</h3>
+                <div class="more-btn" onclick="openDetailModal('아동')">자세히 보기 ↗</div>
+            </div>
+            <div class="genre-list" id="kids-list"></div>
+        </div>
+    </div>
+
+    <!-- 커뮤니티 생성 플로팅 버튼 (클릭 시 새 모달 열림) -->
+    <div class="floating-btn" title="커뮤니티 생성" onclick="openCreateModal()">+</div>
+
+    <!-- 1. 기존 '자세히 보기' 모달 -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="detail-modal-content" id="detailModalContent">
+            <button class="close-btn" onclick="closeModals()" style="z-index: 10;">X</button>
+            <!-- 도서 표지가 여기에 동적으로 생성됩니다 -->
+        </div>
+    </div>
+
+    <!-- 2. 새로운 '커뮤니티 개설' 모달 (+버튼 클릭시) -->
+    <div class="modal-overlay" id="createModal">
+        <div class="create-modal-content">
+            <button class="close-btn" onclick="closeModals()">X</button>
+            
+            <h2>커뮤니티 개설</h2>
+            
+            <div class="create-modal-search">
+                <span>📖</span>
+                <input type="text" placeholder="도서 이름을 입력해 주세요">
+                <span>🔍</span>
+            </div>
+
+            <div class="create-modal-info">
+                <p>현재 <span class="text-red">2026년 3월 18일</span>까지 출판된 도서의 정보가 업데이트 되었습니다.</p>
+                <p><span class="text-red">책 한 권 당 하나의 커뮤니티만</span> 개설 가능합니다.</p>
+                <p>중복된 커뮤니티를 발견하셨다면 010-xxxx-xxxx로 연락 바랍니다.</p>
+                <br>
+                <p><span class="text-red">커뮤니티 생성 시 2포인트</span>를 얻을 수 있습니다. (하루에 3번 제한)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 검색된 책 상세정보 전체 창 -->
+    <div id="searchDetailModal">
+        <div class="full-page-header">
+            <button class="back-btn" onclick="closeSearchModal()">← 뒤로 가기</button>
+        </div>
+        <div class="search-detail-content">
+            <div class="book-header">
+                <img id="detailCover" class="book-cover-img" src="" alt="표지">
+                <div class="book-info-container">
+                    <div class="book-info-txt">
+                        <h2 id="detailTitle">제목</h2>
+                        <h4 id="detailSubTitle" style="color: #666; font-size: 16px; margin-top: -10px; margin-bottom: 20px; font-weight: normal; display: none;">부제</h4>
+                        <p><strong>저자:</strong> <span id="detailAuthor"></span></p>
+                        <p><strong>출판사:</strong> <span id="detailPublisher"></span></p>
+                        <p><strong>출간일:</strong> <span id="detailPubDate"></span></p>
+                    </div>
+                    <button class="create-community-btn" onclick="createCommunity()">
+                        ➕ 커뮤니티 생성
+                    </button>
+                </div>
+            </div>
+            
+            <h3 class="section-title">줄거리 (요약)</h3>
+            <div id="detailStory" class="content-box"></div>
+
+            <h3 class="section-title">목차</h3>
+            <div id="detailToc" class="content-box"></div>
+        </div>
+    </div>
+
+    <!-- 자바스크립트 -->
+    <script>
+        const detailModal = document.getElementById("detailModal");
+        const createModal = document.getElementById("createModal");
+
+        // 카테고리별 검색 키워드 매핑
+        function getCategoryKeywords(category) {
+            switch(category) {
+                case '소설': return ['현대 소설', '소설 베스트셀러'];
+                case '만화': return ['만화', '코믹스', '웹툰', '순정만화', '그래픽노블'];
+                case '에세이': return ['에세이 베스트셀러', '산문'];
+                case '교양': return ['경제경영', '자기계발', '인문학'];
+                case '참고서': return ['수험서', '자격증', '고등학교 참고서'];
+                case '어학': return ['ELT', '해외 대학교재'];
+                case '실용': return ['컴퓨터/모바일', '기계공학', '전기/전자공학'];
+                case '아동': return ['어린이', '유아'];
+                default: return [category];
+            }
+        }
+
+        async function openDetailModal(category) {
+            detailModal.style.display = "flex";
+            const modalContent = document.getElementById("detailModalContent");
+            
+            // 기존 책 제거 (닫기 버튼 제외)
+            const existingBooks = modalContent.querySelectorAll('.modal-book');
+            existingBooks.forEach(b => b.remove());
+
+            // 로딩 표시
+            const loadingText = document.createElement('div');
+            loadingText.className = 'modal-book';
+            loadingText.style.gridColumn = '1 / -1';
+            loadingText.style.textAlign = 'center';
+            loadingText.innerText = '로딩 중...';
+            modalContent.appendChild(loadingText);
+
+            try {
+                // API 호출 (기본 10개씩 반환될 수 있으므로, 관련된 여러 키워드로 검색하여 합칩니다)
+                const keywords = getCategoryKeywords(category);
+                
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+                
+                loadingText.remove();
+                
+                if (allItems.length > 0) {
+                    // 중복 제거 (isbn 기준)
+                    const uniqueItems = Array.from(new Map(allItems.map(book => [book.isbn13 || book.isbn, book])).values());
+                    
+                    // 랜덤으로 섞기 후 최대 18개 선택
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 18);
+                    
+                    // 만약 18개가 안 되면 부족한 개수만큼 추가 빈 칸 생성 방지, 또는 부족한 만큼 기존 항목을 반복해서 채우기
+                    while(selected.length < 18 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    selected.forEach(book => {
+                        const div = document.createElement('div');
+                        div.className = 'modal-book';
+                        div.style.padding = '0';
+                        div.style.border = 'none';
+                        div.style.backgroundColor = 'transparent';
+                        div.style.overflow = 'hidden';
+                        
+                        div.innerHTML = `<img src="${book.cover}" alt="${book.title}" title="${book.title}" style="width:100%; height:100%; object-fit:cover; border-radius:5px; cursor:pointer;" onclick="closeModals(); fetchBookDetail('${book.isbn13 || book.isbn}')">`;
+                        modalContent.appendChild(div);
+                    });
+                } else {
+                    loadingText.innerText = '데이터가 없습니다.';
+                    modalContent.appendChild(loadingText);
+                }
+            } catch (err) {
+                loadingText.innerText = '오류 발생';
+                modalContent.appendChild(loadingText);
+                console.error(err);
+            }
+        }
+
+        function openCreateModal() {
+            createModal.style.display = "flex";
+        }
+
+        function closeModals() {
+            detailModal.style.display = "none";
+            createModal.style.display = "none";
+        }
+
+        function closeSearchModal() {
+            if (window.location.search.includes('detail=')) {
+                history.back(); // URL에 detail이 있으면 브라우저 뒤로가기 실행
+            } else {
+                document.getElementById("searchDetailModal").style.display = "none";
+            }
+        }
+
+        // 브라우저 뒤로가기(popstate) 및 로드 시 URL 파라미터 감지
+        window.addEventListener('popstate', (event) => {
+            const searchParams = new URLSearchParams(window.location.search);
+            if (!searchParams.has('detail')) {
+                document.getElementById("searchDetailModal").style.display = "none";
+            } else {
+                fetchBookDetail(searchParams.get('detail'), true);
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.has('detail')) {
+                fetchBookDetail(searchParams.get('detail'), true);
+            }
+            
+            // HOT 커뮤니티 기본 탭 로딩
+            loadHotCommunity('소설');
+
+            // NEW 커뮤니티 도서 로딩
+            loadNewCommunity();
+
+            // 메인 화면 하단 도서 목록 4개씩 표지 로딩
+            loadGenreBooks('소설', 'novel-list');
+            loadGenreBooks('만화', 'comic-list');
+            loadGenreBooks('에세이', 'essay-list');
+            loadGenreBooks('교양', 'culture-list');
+            loadGenreBooks('참고서', 'reference-list');
+            loadGenreBooks('어학', 'language-list');
+            loadGenreBooks('실용', 'practical-list');
+            loadGenreBooks('아동', 'kids-list');
+        });
+
+        /** HOT 커뮤니티 도서 로딩 */
+        async function loadHotCommunity(tabName) {
+            const grid = document.getElementById('hot-book-grid');
+            grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">로딩 중...</div>';
+            
+            // 탭 스타일 변경
+            const tabs = document.querySelectorAll('#hot-tabs span');
+            tabs.forEach(tab => {
+                if (tab.innerText === tabName) {
+                    tab.style.background = '#d89047'; // 활성화 시 더 진한 색
+                    tab.style.fontWeight = 'bold';
+                } else {
+                    tab.style.background = '#e8a867';
+                    tab.style.fontWeight = 'normal';
+                }
+            });
+
+            // 검색어 매핑
+            let keywords = [];
+            if (tabName === '소설') {
+                keywords = ['에세이', '문학', '소설'];
+            } else if (tabName === '전공') {
+                keywords = ['참고서', '어학', '실용'];
+            } else if (tabName === '만화') {
+                keywords = ['만화', '웹툰', '만화 베스트셀러', '소년만화', '순정만화'];
+            }
+
+            try {
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    // 같은 시리즈가 중복해서 나오지 않도록 고유한 작품명으로만 필터링
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        // 끝에 붙는 번호(ex: ' 1', ' 10권') 등을 제거하여 기본 작품명 추출
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 6);
+                    
+                    while(selected.length < 6 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    grid.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+                        
+                        // 실제 API 평점 반영 (10점 만점 기준 -> 5점 만점)
+                        const rating = Math.round(book.customerReviewRank || 0); // 소수점 반올림
+                        const fullStars = Math.floor(rating / 2);
+                        const hasHalfStar = (rating % 2) !== 0;
+                        
+                        let starsHtml = '';
+                        for(let i=0; i<5; i++) {
+                            if (i < fullStars) {
+                                starsHtml += '<span style="color:#e8a867;">★</span>';
+                            } else if (i === fullStars && hasHalfStar) {
+                                starsHtml += '<span style="position:relative; display:inline-block;"><span style="color:#aaa;">★</span><span style="color:#e8a867; position:absolute; left:0; top:0; width:50%; overflow:hidden;">★</span></span>';
+                            } else {
+                                starsHtml += '<span style="color:#aaa;">★</span>';
+                            }
+                        }
+
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '8px';
+                        
+                        div.innerHTML = `
+                            <img src="${book.cover}" alt="${mainTitle}" title="${mainTitle}" style="width:100%; aspect-ratio: 3/4; object-fit:cover; border-radius:5px; cursor:pointer; background:#fff; border:1px solid #ddd; box-shadow: 2px 3px 6px rgba(0,0,0,0.08);" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                            <div style="font-size:15px; color:#111; font-weight:bold; line-height:1.3; text-align:left;">${displayTitle}</div>
+                            <div style="font-size:16px; margin-top:-5px; letter-spacing:-1px; text-align:left;">${starsHtml}</div>
+                        `;
+                        grid.appendChild(div);
+                    });
+                } else {
+                    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">데이터가 없습니다.</div>';
+                }
+            } catch (err) {
+                grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">오류 발생</div>';
+                console.error(err);
+            }
+        }
+
+        /** NEW 커뮤니티 도서 로딩 */
+        async function loadNewCommunity() {
+            const grid = document.getElementById('new-book-grid');
+            grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">로딩 중...</div>';
+            
+            // 전 카테고리에 걸쳐 다양하게 가져오기
+            const keywords = ['신간', '종합 베스트셀러', '소설 만화 기대작', '에세이 신간', '교양 추천'];
+
+            try {
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 4); // 랜덤으로 4권만
+                    
+                    while(selected.length < 4 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    grid.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '8px';
+                        
+                        // NEW 빨간색 배지 추가 및 사진 18 느낌 구현
+                        div.innerHTML = `
+                            <div style="position: relative; overflow: hidden; border-radius: 5px; cursor: pointer; box-shadow: 2px 3px 6px rgba(0,0,0,0.08); border: 1px solid #ddd;" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                                <img src="${book.cover}" alt="${mainTitle}" title="${mainTitle}" style="width:100%; aspect-ratio: 3/4; object-fit:cover; display:block; background:#fff;">
+                                <div style="position: absolute; top: 12px; right: -30px; background: #c63031; color: white; padding: 2px 30px; font-size: 13px; font-weight: bold; transform: rotate(45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NEW!</div>
+                            </div>
+                            <div style="font-size:15px; color:#111; font-weight:bold; line-height:1.3; text-align:left;">${displayTitle}</div>
+                        `;
+                        grid.appendChild(div);
+                    });
+                } else {
+                    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">데이터가 없습니다.</div>';
+                }
+            } catch (err) {
+                grid.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#666; font-size:13px; margin-top:20px;">오류 발생</div>';
+                console.error(err);
+            }
+        }
+
+        /** 메인 화면 하단 카테고리별 도서 표지 4개 로드 */
+        async function loadGenreBooks(category, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '<div style="color: #666; font-size: 14px;">표지를 불러오는 중입니다...</div>';
+
+            try {
+                // 여러 키워드로 검색 (API 특성상 1회 10개 제한 극복)
+                const keywords = getCategoryKeywords(category);
+                const promises = keywords.map(kw => 
+                    supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: kw } 
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                let allItems = [];
+                
+                results.forEach(res => {
+                    if (!res.error && res.data && res.data.item) {
+                        allItems = allItems.concat(res.data.item);
+                    }
+                });
+
+                if (allItems.length > 0) {
+                    // 같은 시리즈가 중복해서 나오지 않도록 고유한 작품명으로만 필터링
+                    const uniqueItemsMap = new Map();
+                    allItems.forEach(book => {
+                        let mainTitle = book.title.split(' - ')[0].trim();
+                        let baseTitle = mainTitle.replace(/\s*\d+권?$/, '').trim();
+                        if (!uniqueItemsMap.has(baseTitle)) {
+                            uniqueItemsMap.set(baseTitle, book);
+                        }
+                    });
+                    const uniqueItems = Array.from(uniqueItemsMap.values());
+                    
+                    const shuffled = uniqueItems.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, 4);
+                    
+                    // 4개가 안될 시 채워넣기
+                    while(selected.length < 4 && selected.length > 0) {
+                        selected.push(selected[Math.floor(Math.random() * uniqueItems.length)]);
+                    }
+                    
+                    container.innerHTML = '';
+                    
+                    selected.forEach(book => {
+                        // 원제 파싱 (부제 제거)
+                        let mainTitle = book.title;
+                        if (mainTitle.includes(' - ')) {
+                            mainTitle = mainTitle.split(' - ')[0].trim();
+                        }
+
+                        // 18자 이상 축약
+                        let displayTitle = mainTitle;
+                        if (displayTitle.length > 18) {
+                            displayTitle = displayTitle.substring(0, 18) + '...';
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'genre-item';
+                        
+                        div.innerHTML = `
+                            <img src="${book.cover}" class="book-cover" alt="${mainTitle}" title="${mainTitle}" onclick="fetchBookDetail('${book.isbn13 || book.isbn}')">
+                            <div class="book-title">${displayTitle}</div>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<div style="color: #666; font-size: 14px;">데이터가 없습니다.</div>';
+                }
+            } catch (err) {
+                container.innerHTML = '<div style="color: #666; font-size: 14px;">오류 발생</div>';
+                console.error(err);
+            }
+        }
+
+        // 모달 바깥 영역(배경) 클릭 시 닫히게 하기
+        window.onclick = function(event) {
+            if (event.target == detailModal || event.target == createModal) {
+                closeModals();
+            }
+        }
+
+        // ============================================
+        // 알라딘 API 연관 검색어 자동완성 스크립트
+        // ============================================
+        const supabaseUrl = 'https://qbmebyimhpglrvtqnkwa.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibWVieWltaHBnbHJ2dHFua3dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MjA5MzMsImV4cCI6MjA5MTI5NjkzM30.S3AKKMNaz9iJLb6NQL_P84Dft1Y7sWb-7lFXEuhTkTI';
+        
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let debounceTimer;
+
+        function handleInput() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const suggestionsDiv = document.getElementById('suggestions');
+            const loadingDiv = document.getElementById('loading');
+            
+            if (!query) {
+                suggestionsDiv.style.display = 'none';
+                loadingDiv.style.display = 'none';
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const { data, error } = await supabaseClient.functions.invoke('aladin', {
+                        body: { type: 'search', query: query }
+                    });
+
+                    loadingDiv.style.display = 'none';
+                    if (error) throw error;
+
+                    if (data && data.item && data.item.length > 0) {
+                        suggestionsDiv.innerHTML = '';
+                        data.item.forEach(book => {
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            
+                            // 이름 전처리 (지은이, 옮긴이 등 텍스트 제거)
+                            let cleanAuthor = book.author || '저자 미상';
+                            if (cleanAuthor.includes('(지은이)')) {
+                                cleanAuthor = cleanAuthor.split('(지은이)')[0].trim();
+                            }
+                            
+                            // 부제 제외하고 원제(본 제목)만 표시
+                            let mainTitle = book.title;
+                            if (mainTitle.includes(' - ')) {
+                                mainTitle = mainTitle.split(' - ')[0].trim();
+                            }
+                            
+                            div.innerHTML = `
+                                <img src="${book.cover}" alt="book cover">
+                                <div class="sg-info">
+                                    <div class="sg-title">${mainTitle}</div>
+                                    <div class="sg-author">${cleanAuthor} · ${book.publisher}</div>
+                                </div>
+                            `;
+                            
+                            // 항목 클릭 시
+                            div.onclick = () => {
+                                document.getElementById('searchQuery').value = mainTitle; // 입력창에 텍스트 넣기
+                                suggestionsDiv.style.display = 'none'; // 드롭다운 닫기
+                                
+                                fetchBookDetail(book.isbn13 || book.isbn); // 상세정보 조회 후 모달 띄우기
+                            };
+                            suggestionsDiv.appendChild(div);
+                        });
+                        suggestionsDiv.style.display = 'block';
+                    } else {
+                        suggestionsDiv.innerHTML = '<div class="suggestion-item" style="color:#888; cursor:default;">검색 결과가 없습니다.</div>';
+                        suggestionsDiv.style.display = 'block';
+                    }
+                } catch (err) {
+                    loadingDiv.style.display = 'none';
+                    console.error('검색 오류:', err);
+                }
+            }, 500); 
+        }
+
+        /** 2. 책 상세정보 API 호출 및 모달 노출 */
+        async function fetchBookDetail(isbn, isPopState = false) {
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.style.display = 'block';
+
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('aladin', {
+                    body: { type: 'lookup', itemId: isbn }
+                });
+
+                loadingDiv.style.display = 'none';
+                if (error) throw error;
+
+                if (data && data.item && data.item.length > 0) {
+                    const book = data.item[0];
+                    const subInfo = book.subInfo || {};
+
+                    // 모달 화면에 표지, 저자, 제목 등 정보 채우기
+                    document.getElementById('detailCover').src = book.cover || '';
+
+                    // 원제(본제)와 부제 분리
+                    let mainTitle = book.title;
+                    let subTitle = subInfo.subTitle || ""; // API에서 제공하는 부제 우선 사용
+
+                    if (mainTitle.includes(' - ')) {
+                        let parts = book.title.split(' - ');
+                        mainTitle = parts[0].trim();
+                        // API에 부제가 없었지만 '-' 로 파싱된 경우
+                        if (!subTitle) subTitle = parts.slice(1).join(' - ').trim();
+                    } else if (subTitle && mainTitle.includes(subTitle)) {
+                        // 제목에 부제가 포함되어 있는 경우 분리
+                        mainTitle = mainTitle.replace(subTitle, '').replace(/[ -:\|]+$/, '').trim();
+                    }
+
+                    document.getElementById('detailTitle').textContent = mainTitle;
+                    const detailSubTitleEl = document.getElementById('detailSubTitle');
+                    
+                    if (subTitle) {
+                        detailSubTitleEl.textContent = subTitle;
+                        detailSubTitleEl.style.display = 'block';
+                    } else {
+                        detailSubTitleEl.style.display = 'none';
+                    }
+
+                    document.getElementById('detailAuthor').textContent = book.author || '저자 불명';
+                    document.getElementById('detailPublisher').textContent = book.publisher;
+                    document.getElementById('detailPubDate').textContent = book.pubDate;
+
+                    // 리뷰/줄거리 및 목차 표시
+                    let story = book.description || '제공된 줄거리가 없습니다.';
+                    story = story.replace(/&lt;br\/&gt;/g, '<br>');
+                    document.getElementById('detailStory').innerHTML = story;
+                    
+                    let toc = subInfo.toc || '제공된 목차가 없습니다.';
+                    document.getElementById('detailToc').innerHTML = toc.replace(/\n/g, '<br>');
+
+                    // 상세 정보 모달 컨테이너 노출
+                    document.getElementById('searchDetailModal').style.display = 'block';
+
+                    // URL 변경 (브라우저 뒤로가기 지원)
+                    if (!isPopState) {
+                        const newUrl = window.location.pathname + '?detail=' + isbn;
+                        history.pushState({ detail: isbn }, '', newUrl);
+                    }
+                }
+            } catch (err) {
+                loadingDiv.style.display = 'none';
+                alert('상세 정보를 불러오는데 실패했습니다.');
+                console.error(err);
+            }
+        }
+
+        // 바탕 클릭 시 드롭다운 닫기
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-bar')) {
+                document.getElementById('suggestions').style.display = 'none';
+            }
+        });
+
+        /** 커뮤니티 생성 함수 */
+        function createCommunity() {
+            // 경고창으로 메시지 표시
+            alert('커뮤니티를 생성합니다!');
+            
+            // 또는 콘솔 로그
+            console.log('커뮤니티 생성 시작...');
+        }
+    </script>
+
+</body>
+</html>

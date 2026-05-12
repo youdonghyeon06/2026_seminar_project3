@@ -93,6 +93,44 @@ export default function Home() {
   const [createSearchError, setCreateSearchError] = useState<string | null>(null);
   const [createdCommunityIds, setCreatedCommunityIds] = useState<string[]>([]);
 
+  // 즐겨찾기 상태 추가
+  const [favorites, setFavorites] = useState<{ id: string; title: string; author: string; cover: string }[]>([]);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        setFavorites([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("favorites")
+          .select("*")
+          .eq("user_id", session.user.id);
+          
+        if (!error && data) {
+          const mappedFavs = data.map((f: any) => ({
+            id: f.book_id,
+            title: f.title,
+            author: f.author,
+            cover: f.cover,
+          }));
+          setFavorites(mappedFavs);
+        }
+      } catch (e) {
+        console.error("즐겨찾기 목록을 불러오는 중 오류:", e);
+      }
+    };
+
+    loadFavorites();
+    // 창 전환 시 업데이트 (새로고침 없이 동기화)
+    window.addEventListener("focus", loadFavorites);
+    return () => window.removeEventListener("focus", loadFavorites);
+  }, [userEmail]); // userEmail이 변경(로그인/로그아웃)될 때마다 재실행
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!searchBoxRef.current) return;
@@ -970,27 +1008,58 @@ export default function Home() {
 
           <div className="bg-[#f8e4b7] p-6 rounded-xl shadow-sm">
             <h2 className="text-2xl font-bold mb-4">즐겨찾기</h2>
-            {[
-              { title: "아몬드", author: "손원평" },
-              { title: "WICKED KING", author: "Nikores nessy" },
-              { title: "마션", author: "앤디위어" },
-            ].map((book, idx) => (
-              <div key={idx} className="flex items-center justify-between mt-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">📚</span>
-                  <div className="font-bold leading-tight">
-                    {book.title}
-                    <br />
-                    <small className="font-normal text-gray-600">
-                      {book.author}
-                    </small>
-                  </div>
-                </div>
-                <span className="text-red-500 text-xl cursor-pointer hover:scale-110 transition">
-                  ❤️
-                </span>
+            {!userEmail ? (
+              <div className="text-center text-[#d32f2f] text-sm mt-8 pb-4 font-bold">
+                즐겨찾기를 이용하시려면 로그인 해주세요.
               </div>
-            ))}
+            ) : favorites.length > 0 ? (
+              favorites.map((book, idx) => {
+                const author = book.author ? book.author.split(",")[0] : "저자 미상";
+                const mainTitle = book.title.split(" - ")[0].trim();
+                
+                return (
+                  <Link
+                    href={{
+                      pathname: "/detail",
+                      query: { id: book.id },
+                    }}
+                    key={idx}
+                    className="flex items-center justify-between mt-4 group hover:bg-[#ebd7aa] p-2 rounded-lg transition"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {book.cover ? (
+                        <div className="w-[50px] h-[50px] shrink-0 border border-gray-300 rounded-full overflow-hidden shadow-sm">
+                          <img
+                            src={book.cover}
+                            alt={mainTitle}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-[50px] h-[50px] shrink-0 border border-gray-300 rounded-full flex items-center justify-center bg-gray-200 shadow-sm text-lg">
+                          📚
+                        </div>
+                      )}
+                      <div className="font-bold leading-tight flex-1 min-w-0">
+                        <div className="truncate text-base text-gray-900">{mainTitle}</div>
+                        <small className="font-normal text-gray-600 truncate block mt-0.5">
+                          {author}
+                        </small>
+                      </div>
+                    </div>
+                    <span
+                      className="text-red-500 text-2xl ml-2 cursor-pointer transition select-none"
+                    >
+                      ❤️
+                    </span>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="text-center text-gray-500 text-sm mt-8 pb-4 font-bold">
+                즐겨찾기한 도서가 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>

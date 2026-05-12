@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 // 게시물 타입 정의
 interface Post {
@@ -29,6 +30,7 @@ function DetailPageContent() {
 
   // 상태 관리
   const [isHeartActive, setIsHeartActive] = useState(false);
+  const [favorites, setFavorites] = useState<{ id: string; title: string; author: string; cover: string }[]>([]);
   const [activeTab, setActiveTab] = useState("일반");
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -143,11 +145,100 @@ function DetailPageContent() {
   }, [searchParams]);
 
   const [currentUser, setCurrentUser] = useState("익명사용자");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const currentDate = "2026.04.03";
 
   useEffect(() => {
     setCurrentUser(localStorage.getItem("userNickname") || "익명사용자");
-  }, []);
+    
+    // 초기 즐겨찾기 상태 로드 (DB에서)
+    const initSessionAndFavorites = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserEmail(session?.user?.email ?? null);
+
+      if (!session?.user) {
+        setFavorites([]);
+        setIsHeartActive(false);
+        return;
+      }
+
+      const id = searchParams.get("id");
+      try {
+        const { data, error } = await supabase
+          .from("favorites")
+          .select("*")
+          .eq("user_id", session.user.id);
+
+        if (!error && data) {
+          const mappedFavs = data.map((f: any) => ({
+            id: f.book_id,
+            title: f.title,
+            author: f.author,
+            cover: f.cover,
+          }));
+          setFavorites(mappedFavs);
+          if (id && mappedFavs.some((fav: any) => fav.id === id)) {
+            setIsHeartActive(true);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    initSessionAndFavorites();
+  }, [searchParams]);
+
+  const handleHeartToggle = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      alert("로그인 후 이용할 수 있습니다.");
+      return;
+    }
+
+    const id = searchParams.get("id");
+    if (!id) return;
+
+    if (isHeartActive) {
+      // 삭제
+      const { error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("book_id", id);
+      
+      if (!error) {
+        setFavorites((prev) => prev.filter((fav) => fav.id !== id));
+        setIsHeartActive(false);
+      }
+    } else {
+      // 추가할 때 최대 3개 확인
+      if (favorites.length >= 3) {
+        alert("더이상 즐겨찾을 수 없습니다.");
+        return;
+      }
+
+      const newFav = {
+        user_id: session.user.id,
+        book_id: id,
+        title: book.title,
+        author: book.author,
+        cover: book.cover || "",
+      };
+
+      const { error } = await supabase.from("favorites").insert([newFav]);
+      
+      if (!error) {
+        setFavorites((prev) => [
+          ...prev,
+          { id, title: book.title, author: book.author, cover: book.cover },
+        ]);
+        setIsHeartActive(true);
+      } else {
+        alert("즐겨찾기 추가에 실패했습니다.");
+      }
+    }
+  };
 
   const handleDeleteCommunity = () => {
     if (confirm("정말로 커뮤니티를 삭제하시겠습니까? 관련 정보가 모두 삭제됩니다.")) {
@@ -265,7 +356,7 @@ function DetailPageContent() {
               className={`absolute top-5 right-5 text-3xl cursor-pointer transition-colors duration-300 select-none ${
                 isHeartActive ? "text-[#e74c3c]" : "text-[#ccc]"
               }`}
-              onClick={() => setIsHeartActive(!isHeartActive)}
+              onClick={handleHeartToggle}
             >
               ♥
             </div>

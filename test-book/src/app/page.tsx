@@ -86,6 +86,13 @@ export default function Home() {
   const [nicknameInput, setNicknameInput] = useState("");
   const [isNicknameDuplicate, setIsNicknameDuplicate] = useState(false);
 
+  // 커뮤니티 개설 모달 내 검색
+  const [createSearchKeyword, setCreateSearchKeyword] = useState("");
+  const [createSearchBooks, setCreateSearchBooks] = useState<BookRow[]>([]);
+  const [isCreateSearching, setIsCreateSearching] = useState(false);
+  const [createSearchError, setCreateSearchError] = useState<string | null>(null);
+  const [createdCommunityIds, setCreatedCommunityIds] = useState<string[]>([]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!searchBoxRef.current) return;
@@ -609,6 +616,51 @@ export default function Home() {
     }
   };
 
+  const handleCreateSearch = async () => {
+    if (!createSearchKeyword.trim()) return;
+
+    setIsCreateSearching(true);
+    setCreateSearchError(null);
+    setCreateSearchBooks([]);
+
+    try {
+      const res = await fetch(
+        `/api/aladin/search?q=${encodeURIComponent(createSearchKeyword)}`
+      );
+      const payload = (await res.json()) as { item?: Array<any>; error?: string };
+
+      if (!res.ok) throw new Error(payload.error ?? "도서 검색에 실패했습니다.");
+
+      const items = Array.isArray(payload?.item) ? payload.item : [];
+      const mapped = items.map((item: any, index: number) => ({
+        id: item.itemId ?? (Number(item.isbn13) || index + 1),
+        title: item.title ?? "제목 없음",
+        author: item.author ?? null,
+        cover: item.cover ?? null,
+        isbn13: item.isbn13 ?? item.isbn ?? null,
+        publisher: item.publisher ?? null,
+        pubDate: item.pubDate ?? null,
+        description: item.description ?? null,
+      }));
+
+      // 중복 제거
+      const uniqueMap = new Map<string, BookRow>();
+      mapped.forEach((book) => {
+        const mainTitle = book.title.split(" - ")[0].trim();
+        const baseTitle = mainTitle.replace(/\s*\d+권?$/, "").trim();
+        if (!uniqueMap.has(baseTitle)) {
+          uniqueMap.set(baseTitle, book);
+        }
+      });
+
+      setCreateSearchBooks(Array.from(uniqueMap.values()).slice(0, 10));
+    } catch (err: any) {
+      setCreateSearchError(err.message ?? "도서 검색에 실패했습니다.");
+    } finally {
+      setIsCreateSearching(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f4ede1] text-[#333] font-sans">
       {/* 헤더 */}
@@ -690,15 +742,7 @@ export default function Home() {
                   <Link
                     href={{
                       pathname: "/detail",
-                      query: {
-                        title: book.title,
-                        author: book.author ?? "",
-                        cover: book.cover ?? "",
-                        isbn13: book.isbn13 ?? "",
-                        publisher: book.publisher ?? "",
-                        pubDate: book.pubDate ?? "",
-                        description: book.description ?? "",
-                      },
+                      query: { id: book.isbn13 || book.id },
                     }}
                     key={book.id}
                     className="flex items-center gap-4 p-4 border-b border-gray-100 last:border-b-0 hover:bg-[#f7f7f7]"
@@ -784,15 +828,7 @@ export default function Home() {
                         key={book.id}
                         href={{
                           pathname: "/detail",
-                          query: {
-                            title: book.title,
-                            author: book.author ?? "",
-                            cover: book.cover ?? "",
-                            isbn13: book.isbn13 ?? "",
-                            publisher: book.publisher ?? "",
-                            pubDate: book.pubDate ?? "",
-                            description: book.description ?? "",
-                          },
+                          query: { id: book.isbn13 || book.id },
                         }}
                         className="flex flex-col gap-2 group"
                       >
@@ -845,15 +881,7 @@ export default function Home() {
                         key={book.id}
                         href={{
                           pathname: "/detail",
-                          query: {
-                            title: book.title,
-                            author: book.author ?? "",
-                            cover: book.cover ?? "",
-                            isbn13: book.isbn13 ?? "",
-                            publisher: book.publisher ?? "",
-                            pubDate: book.pubDate ?? "",
-                            description: book.description ?? "",
-                          },
+                          query: { id: book.isbn13 || book.id },
                         }}
                         className="relative overflow-hidden group"
                       >
@@ -1004,15 +1032,7 @@ export default function Home() {
                         key={book.id}
                         href={{
                           pathname: "/detail",
-                          query: {
-                            title: book.title,
-                            author: book.author ?? "",
-                            cover: book.cover ?? "",
-                            isbn13: book.isbn13 ?? "",
-                            publisher: book.publisher ?? "",
-                            pubDate: book.pubDate ?? "",
-                            description: book.description ?? "",
-                          },
+                          query: { id: book.isbn13 || book.id },
                         }}
                         className="flex flex-col gap-2 w-[120px] shrink-0"
                       >
@@ -1044,11 +1064,21 @@ export default function Home() {
         </div>
       ))}
 
-      {/* 커뮤니티 생성 플로팅 버튼 */}
+      {/* 커뮤니티 생성 플로팅 버튼 - 로그인한 사용자만 모달 오픈 허용 */}
       <div
         className="fixed bottom-[30px] right-[30px] w-[60px] h-[60px] bg-[#e5bd6f] rounded-full flex items-center justify-center text-4xl font-bold cursor-pointer shadow-lg hover:bg-[#dab768] hover:scale-105 transition active:scale-95 z-40 text-black/80"
         title="커뮤니티 생성"
-        onClick={() => setCreateModalOpen(true)}
+        onClick={() => {
+          if (!userEmail) {
+            alert("로그인 후 이용할 수 있습니다.");
+            return;
+          }
+          const stored = JSON.parse(localStorage.getItem("communities") || "[]");
+          setCreatedCommunityIds(stored.map((c: any) => String(c.id)));
+          setCreateSearchKeyword("");
+          setCreateSearchBooks([]);
+          setCreateModalOpen(true);
+        }}
       >
         +
       </div>
@@ -1149,15 +1179,7 @@ export default function Home() {
                     key={book.id}
                     href={{
                       pathname: "/detail",
-                      query: {
-                        title: book.title,
-                        author: book.author ?? "",
-                        cover: book.cover ?? "",
-                        isbn13: book.isbn13 ?? "",
-                        publisher: book.publisher ?? "",
-                        pubDate: book.pubDate ?? "",
-                        description: book.description ?? "",
-                      },
+                      query: { id: book.isbn13 || book.id },
                     }}
                     onClick={() => setDetailModalOpen(false)}
                     className="group"
@@ -1192,7 +1214,7 @@ export default function Home() {
           onClick={() => setCreateModalOpen(false)}
         >
           <div
-            className="bg-[#fdf5e6] w-[70%] max-w-[800px] h-fit min-h-[50%] rounded-xl p-10 relative flex flex-col items-center justify-center text-center shadow-xl"
+            className="bg-[#fdf5e6] w-[70%] max-w-[800px] h-[80%] rounded-xl p-6 md:p-10 relative flex flex-col items-center shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1202,40 +1224,139 @@ export default function Home() {
               ×
             </button>
 
-            <h2 className="text-[32px] font-bold mb-8 mt-2">커뮤니티 개설</h2>
+            <h2 className="text-[28px] md:text-[32px] font-bold mb-6 mt-2">커뮤니티 개설</h2>
 
-            <div className="flex items-center bg-white border-2 border-black rounded-full px-5 py-2 mb-10 w-[60%] shadow-sm">
+            <div className="flex items-center bg-white border-2 border-black rounded-full px-5 py-2 mb-6 w-full max-w-[500px] shadow-sm shrink-0">
               <span className="text-xl px-2">📖</span>
               <input
                 type="text"
                 placeholder="도서 이름을 입력해 주세요"
+                value={createSearchKeyword}
+                onChange={(e) => setCreateSearchKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateSearch();
+                }}
                 className="border-none outline-none w-full text-lg px-2 text-center bg-transparent"
               />
-              <span className="text-xl px-2 cursor-pointer hover:scale-110 transition">
+              <span
+                className="text-xl px-2 cursor-pointer hover:scale-110 transition"
+                onClick={handleCreateSearch}
+              >
                 🔍
               </span>
             </div>
 
-            <div className="text-[18px] text-[#555] leading-loose font-bold">
-              <p>
-                현재 <span className="text-[#d32f2f]">2026년 3월 18일</span>까지
-                출판된 도서의 정보가 업데이트 되었습니다.
-              </p>
-              <p>
-                <span className="text-[#d32f2f]">
-                  책 한 권 당 하나의 커뮤니티만
-                </span>{" "}
-                개설 가능합니다.
-              </p>
-              <p>
-                중복된 커뮤니티를 발견하셨다면 010-xxxx-xxxx로 연락 바랍니다.
-              </p>
-              <br />
-              <p>
-                <span className="text-[#d32f2f]">커뮤니티 생성 시 2포인트</span>
-                를 얻을 수 있습니다. (하루에 3번 제한)
-              </p>
+            <div className="flex-1 w-full bg-white rounded-xl shadow-inner border border-gray-200 overflow-y-auto p-4 md:p-6 custom-scrollbar relative">
+              {isCreateSearching ? (
+                <div className="flex items-center justify-center h-full text-gray-500 font-semibold">
+                  검색 중입니다...
+                </div>
+              ) : createSearchError ? (
+                <div className="flex items-center justify-center h-full text-red-500 font-semibold">
+                  {createSearchError}
+                </div>
+              ) : createSearchBooks.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full place-items-start">
+                  {createSearchBooks.map((book) => {
+                    const mainTitle = book.title.split(" - ")[0].trim();
+                    const author = book.author ? book.author.split(",")[0] : "저자 미상";
+
+                    return (
+                      <div key={book.id} className="flex gap-4 p-2 relative w-full items-start">
+                        {book.cover ? (
+                          <img
+                            src={book.cover}
+                            alt={mainTitle}
+                            className="w-[90px] h-[130px] object-cover rounded shadow-md shrink-0 border border-gray-100"
+                          />
+                        ) : (
+                          <div className="w-[90px] h-[130px] bg-gray-200 rounded shadow-md shrink-0 flex items-center justify-center text-xs text-gray-500 border border-gray-300">
+                            표지 없음
+                          </div>
+                        )}
+                        <div className="flex flex-col flex-1 text-left justify-start pt-2 relative h-full">
+                          {/* 개설 로직 - 생성된 커뮤니티일 경우 입장, 아니면 개설 */}
+                          {createdCommunityIds.includes(String(book.isbn13 || book.id)) ? (
+                            <Link
+                              href={{
+                                pathname: "/detail",
+                                query: { id: book.isbn13 || book.id },
+                              }}
+                              className="bg-[#2e7d32] text-white text-sm font-bold w-fit px-3 py-1 rounded shadow-sm hover:bg-[#1b5e20] transition mb-2 inline-block text-center whitespace-nowrap"
+                            >
+                              커뮤니티가 존재합니다
+                            </Link>
+                          ) : (
+                            <Link
+                              href={{
+                                pathname: "/create",
+                                query: { id: book.isbn13 || book.id },
+                              }}
+                              onClick={(e) => {
+                                if (!userEmail) {
+                                  e.preventDefault();
+                                  alert("로그인 후 이용할 수 있습니다.");
+                                  return;
+                                }
+                                setCreateModalOpen(false);
+                              }}
+                              className="bg-[#e47648] text-white text-sm font-bold w-fit px-3 py-1 rounded shadow-sm hover:bg-[#d46638] transition mb-2 inline-block text-center"
+                            >
+                              개설
+                            </Link>
+                          )}
+                          <h3 className="font-bold text-[#333] text-[15px] leading-tight line-clamp-2 mt-1">
+                            {mainTitle}
+                          </h3>
+                          <p className="text-[13px] text-gray-600 mt-1 line-clamp-1 font-medium">
+                            저자: {author}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : createSearchKeyword ? (
+                <div className="flex items-center justify-center h-full text-gray-500 font-semibold">
+                  검색 결과가 없습니다.
+                </div>
+              ) : (
+                <div className="text-[16px] md:text-[18px] text-[#555] leading-loose font-bold h-full flex flex-col justify-center items-center text-center px-4">
+                  <p>
+                    현재 <span className="text-[#d32f2f]">2026년 3월 18일</span>까지<br className="md:hidden" /> 출판된 도서의 정보가 업데이트 되었습니다.
+                  </p>
+                  <p className="mt-4">
+                    <span className="text-[#d32f2f]">책 한 권 당 하나의 커뮤니티만</span> 개설 가능합니다.
+                  </p>
+                  <p className="mt-2 text-[14px] font-normal text-gray-500">
+                    중복된 커뮤니티를 발견하셨다면 010-xxxx-xxxx로 연락 바랍니다.
+                  </p>
+                  <p className="mt-6">
+                    <span className="text-[#d32f2f]">커뮤니티 생성 시 2포인트</span>를 얻을 수 있습니다.
+                    <span className="text-sm font-normal text-gray-500 block mt-1">(하루에 3번 제한)</span>
+                  </p>
+                </div>
+              )}
             </div>
+            
+            <style jsx>{`
+              .custom-scrollbar::-webkit-scrollbar {
+                width: 10px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-track {
+                background: #f1f1f1; 
+                border-radius: 10px;
+                margin: 10px 0;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #888; 
+                border-radius: 10px;
+                border: 2px solid #f1f1f1;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #555; 
+              }
+            `}</style>
           </div>
         </div>
       )}

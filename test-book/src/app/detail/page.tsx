@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 // 게시물 타입 정의
 interface Post {
@@ -23,12 +24,13 @@ interface BookDetail {
   description: string;
 }
 
-export default function DetailPage() {
+function DetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // 상태 관리
   const [isHeartActive, setIsHeartActive] = useState(false);
+  const [favorites, setFavorites] = useState<{ id: string; title: string; author: string; cover: string }[]>([]);
   const [activeTab, setActiveTab] = useState("일반");
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -50,6 +52,14 @@ export default function DetailPage() {
 
   // 현재 보고 있는 게시글 상태
   const [currentPost, setCurrentPost] = useState<Post | null>(null);
+  const [isLoadingBook, setIsLoadingBook] = useState(false);
+
+  const [communityInfo, setCommunityInfo] = useState({
+    date: "2026.04.01",
+    creator: "youdonghyeon06",
+    manager: "admin_book",
+    desc: "",
+  });
 
   useEffect(() => {
     const normalize = (value: string | null) => (value ?? "").trim();
@@ -60,22 +70,188 @@ export default function DetailPage() {
         .replace(/\s+/g, " ")
         .trim();
 
-    const nextBook: BookDetail = {
-      title: normalize(searchParams.get("title")) || "제목 정보 없음",
-      author: normalize(searchParams.get("author")) || "저자 정보 없음",
-      publisher: normalize(searchParams.get("publisher")) || "출판사 정보 없음",
-      pubDate: normalize(searchParams.get("pubDate")) || "출간일 정보 없음",
-      cover: normalize(searchParams.get("cover")),
-      description:
-        removeHtml(normalize(searchParams.get("description"))) ||
-        "도서 설명이 없습니다.",
+    const fetchBookInfo = async () => {
+      const id = searchParams.get("id");
+      const title = searchParams.get("title");
+
+      let commDate = searchParams.get("date");
+      let commCreator = searchParams.get("creator");
+      let commManager = searchParams.get("manager");
+      let commDesc = searchParams.get("desc");
+
+      if (id) {
+        try {
+          const stored = JSON.parse(localStorage.getItem("communities") || "[]");
+          const found = stored.find((c: any) => c.id === id);
+          if (found) {
+            commDate = commDate || found.date;
+            commCreator = commCreator || found.creator;
+            commManager = commManager || found.manager;
+            commDesc = commDesc || found.desc;
+          }
+        } catch (e) {}
+      }
+
+      // 커뮤니티 개설 정보 가져오기
+      setCommunityInfo({
+        date: commDate || "2026.04.01",
+        creator: commCreator || "youdonghyeon06",
+        manager: commManager || "admin_book",
+        desc: commDesc || "",
+      });
+
+      // 만약 URL에 title 파라미터가 있다면 기존 로직 유지
+      if (title) {
+        setBook({
+          title: normalize(title) || "제목 정보 없음",
+          author: normalize(searchParams.get("author")) || "저자 정보 없음",
+          publisher: normalize(searchParams.get("publisher")) || "출판사 정보 없음",
+          pubDate: normalize(searchParams.get("pubDate")) || "출간일 정보 없음",
+          cover: normalize(searchParams.get("cover")),
+          description:
+            removeHtml(normalize(searchParams.get("description"))) ||
+            "도서 설명이 없습니다.",
+        });
+        return;
+      }
+
+      // id(isbn13 등 고유번호)만으로 접근한 경우 Aladin API 재요청
+      if (id) {
+        setIsLoadingBook(true);
+        try {
+          const res = await fetch(`/api/aladin/search?q=${id}`);
+          const payload = await res.json();
+          const item = payload.item?.[0];
+
+          if (item) {
+            setBook({
+              title: item.title ?? "제목 정보 없음",
+              author: item.author ?? "저자 정보 없음",
+              publisher: item.publisher ?? "출판사 정보 없음",
+              pubDate: item.pubDate ?? "출간일 정보 없음",
+              cover: item.cover ?? "",
+              description: removeHtml(item.description || "도서 설명이 없습니다."),
+            });
+          }
+        } catch (error) {
+          console.error("도서 정보를 불러오는데 실패했습니다.", error);
+        } finally {
+          setIsLoadingBook(false);
+        }
+      }
     };
 
-    setBook(nextBook);
+    fetchBookInfo();
   }, [searchParams]);
 
-  const currentUser = "youdonghyeon06";
+  const [currentUser, setCurrentUser] = useState("익명사용자");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const currentDate = "2026.04.03";
+
+  useEffect(() => {
+    setCurrentUser(localStorage.getItem("userNickname") || "익명사용자");
+    
+    // 초기 즐겨찾기 상태 로드 (DB에서)
+    const initSessionAndFavorites = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserEmail(session?.user?.email ?? null);
+
+      if (!session?.user) {
+        setFavorites([]);
+        setIsHeartActive(false);
+        return;
+      }
+
+      const id = searchParams.get("id");
+      try {
+        const { data, error } = await supabase
+          .from("favorites")
+          .select("*")
+          .eq("user_id", session.user.id);
+
+        if (!error && data) {
+          const mappedFavs = data.map((f: any) => ({
+            id: f.book_id,
+            title: f.title,
+            author: f.author,
+            cover: f.cover,
+          }));
+          setFavorites(mappedFavs);
+          if (id && mappedFavs.some((fav: any) => fav.id === id)) {
+            setIsHeartActive(true);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    initSessionAndFavorites();
+  }, [searchParams]);
+
+  const handleHeartToggle = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      alert("로그인 후 이용할 수 있습니다.");
+      return;
+    }
+
+    const id = searchParams.get("id");
+    if (!id) return;
+
+    if (isHeartActive) {
+      // 삭제
+      const { error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("book_id", id);
+      
+      if (!error) {
+        setFavorites((prev) => prev.filter((fav) => fav.id !== id));
+        setIsHeartActive(false);
+      }
+    } else {
+      // 추가할 때 최대 3개 확인
+      if (favorites.length >= 3) {
+        alert("더이상 즐겨찾을 수 없습니다.");
+        return;
+      }
+
+      const newFav = {
+        user_id: session.user.id,
+        book_id: id,
+        title: book.title,
+        author: book.author,
+        cover: book.cover || "",
+      };
+
+      const { error } = await supabase.from("favorites").insert([newFav]);
+      
+      if (!error) {
+        setFavorites((prev) => [
+          ...prev,
+          { id, title: book.title, author: book.author, cover: book.cover },
+        ]);
+        setIsHeartActive(true);
+      } else {
+        alert("즐겨찾기 추가에 실패했습니다.");
+      }
+    }
+  };
+
+  const handleDeleteCommunity = () => {
+    if (confirm("정말로 커뮤니티를 삭제하시겠습니까? 관련 정보가 모두 삭제됩니다.")) {
+      const id = searchParams.get("id");
+      if (id) {
+        const stored = JSON.parse(localStorage.getItem("communities") || "[]");
+        const updated = stored.filter((c: any) => String(c.id) !== String(id));
+        localStorage.setItem("communities", JSON.stringify(updated));
+      }
+      alert("커뮤니티가 삭제되었습니다.");
+      router.push("/");
+    }
+  };
 
   // 글 등록 처리
   const submitPost = () => {
@@ -180,7 +356,7 @@ export default function DetailPage() {
               className={`absolute top-5 right-5 text-3xl cursor-pointer transition-colors duration-300 select-none ${
                 isHeartActive ? "text-[#e74c3c]" : "text-[#ccc]"
               }`}
-              onClick={() => setIsHeartActive(!isHeartActive)}
+              onClick={handleHeartToggle}
             >
               ♥
             </div>
@@ -193,6 +369,15 @@ export default function DetailPage() {
                   {book.title.split(" - ").slice(1).join(" - ").trim()}
                 </p>
               )}
+              {(currentUser === communityInfo.creator || currentUser === communityInfo.manager) && (
+                <button 
+                  onClick={handleDeleteCommunity}
+                  className="mt-4 flex items-center gap-1 text-sm font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100 transition shadow-sm border border-red-100"
+                  title="해당 커뮤니티 삭제"
+                >
+                  <span className="text-base">🗑️</span> 커뮤니티 삭제
+                </button>
+              )}
             </div>
             <p className="text-lg leading-relaxed text-[#555] font-bold">
               저자: {book.author}
@@ -203,13 +388,13 @@ export default function DetailPage() {
             </p>
           </div>
           <div className="bg-[#f4ebd0] p-6 rounded-md shadow-sm flex-1 text-[15px] leading-loose text-[#555] font-bold">
-            커뮤니티 개설일: 2026.04.01 <br />
-            최초 개설자: youdonghyeon06 <br />
-            커뮤니티 매니저: admin_book <br />
+            커뮤니티 개설일: {communityInfo.date} <br />
+            최초 개설자: {communityInfo.creator} <br />
+            커뮤니티 매니저: {communityInfo.manager} <br />
             방문자 수: 1,204 명<br />
             즐겨찾기 수: 342 명<br />
             <br />
-            설명: {book.title}에 대해 이야기하는 공간입니다.
+            설명: {communityInfo.desc || `${book.title}에 대해 이야기하는 공간입니다.`}
           </div>
         </section>
 
@@ -412,5 +597,13 @@ export default function DetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f4ede1] flex items-center justify-center font-bold text-xl">로딩중...</div>}>
+      <DetailPageContent />
+    </Suspense>
   );
 }

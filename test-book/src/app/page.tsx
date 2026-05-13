@@ -242,6 +242,22 @@ export default function Home() {
     setAuthLoading(false);
   };
 
+  const handleTestLogin = async () => {
+    const testEmail = "test@example.com";
+    const testPassword = "password123";
+    const { data, error } = await supabase.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (error) {
+       const { error: signUpError } = await supabase.auth.signUp({ 
+         email: testEmail, 
+         password: testPassword, 
+         options: { data: { nickname: "테스트유저" } } 
+       });
+       if (signUpError) alert("테스트 로그인 에러: " + signUpError.message);
+       else alert("테스트 계정이 생성 및 로그인되었습니다!");
+    } else {
+       alert("테스트 계정으로 로그인되었습니다!");
+    }
+  };
   const handleGithubLogin = async () => {
     setAuthError(null);
     setAuthLoading(true);
@@ -930,6 +946,12 @@ export default function Home() {
                   disabled={authLoading}
                 >
                   GitHub로 로그인
+                </button>
+                <button
+                  className="w-full p-2.5 bg-[#1f7f95] text-white rounded-3xl text-sm font-bold cursor-pointer mt-2 hover:bg-[#1a6a7d] transition"
+                  onClick={handleTestLogin}
+                >
+                  테스트 계정 로그인
                 </button>
               </div>
             )}

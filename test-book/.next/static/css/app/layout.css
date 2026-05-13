@@ -221,8 +221,14 @@
   .relative {
     position: relative;
   }
+  .sticky {
+    position: sticky;
+  }
   .inset-0 {
     inset: calc(var(--spacing) * 0);
+  }
+  .top-0 {
+    top: calc(var(--spacing) * 0);
   }
   .top-2 {
     top: calc(var(--spacing) * 2);
@@ -446,6 +452,9 @@
   .h-\[350px\] {
     height: 350px;
   }
+  .h-\[500px\] {
+    height: 500px;
+  }
   .h-auto {
     height: auto;
   }
@@ -460,6 +469,9 @@
   }
   .max-h-\[500px\] {
     max-height: 500px;
+  }
+  .max-h-\[600px\] {
+    max-height: 600px;
   }
   .max-h-\[760px\] {
     max-height: 760px;
@@ -677,6 +689,17 @@
   }
   .resize-none {
     resize: none;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thumb-\[\#d4bc7c\] {
+    --tw-scrollbar-thumb: #d4bc7c;
+    scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
+  }
+  .scrollbar-track-transparent {
+    --tw-scrollbar-track: transparent;
+    scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
   }
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -2031,6 +2054,16 @@ body {
   syntax: "*";
   inherits: false;
 }
+@property --tw-scrollbar-thumb {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #0000;
+}
+@property --tw-scrollbar-track {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #0000;
+}
 @property --tw-space-y-reverse {
   syntax: "*";
   inherits: false;
@@ -2189,6 +2222,8 @@ body {
       --tw-rotate-z: initial;
       --tw-skew-x: initial;
       --tw-skew-y: initial;
+      --tw-scrollbar-thumb: #0000;
+      --tw-scrollbar-track: #0000;
       --tw-space-y-reverse: 0;
       --tw-border-style: solid;
       --tw-leading: initial;

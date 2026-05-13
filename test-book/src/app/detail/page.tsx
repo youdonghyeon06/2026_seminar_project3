@@ -204,12 +204,12 @@ export default function DetailPage() {
               <h3 className="text-2xl font-black mb-8 flex items-center gap-2"><span className="text-[#d4bc7c]">■</span> 책소개</h3>
               <p className="leading-[1.8] text-lg text-[#444] whitespace-pre-wrap">{book.description}</p>
             </div>
-            <div className="lg:w-1/2 border-l-4 border-[#ffedb5] pl-10 pt-4">
-              <div className="flex justify-between items-center mb-8">
+            <div className="lg:w-1/2 border-l-4 border-[#ffedb5] pl-10 pt-4 flex flex-col h-[500px]">
+              <div className="flex justify-between items-center mb-8 shrink-0">
                 <h3 className="text-3xl font-black text-[#222]">리뷰</h3>
                 <button className="px-8 py-3 bg-[#d4bc7c] text-black font-black rounded-xl hover:bg-[#c4ac6c] transition-all shadow-sm" onClick={() => { if (!user) { alert("로그인이 필요합니다."); return; } setIsWriteModalOpen(true); }}>리뷰 쓰기</button>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-6 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-[#d4bc7c] scrollbar-track-transparent">
                 {posts.filter(p => p.category === "추천").length === 0 ? (
                   <div className="py-20 text-center text-gray-400 bg-white rounded-3xl border-2 border-dashed border-[#ddd]">첫 리뷰를 작성해 보세요!</div>
                 ) : (
@@ -227,29 +227,31 @@ export default function DetailPage() {
           </div>
         ) : (
           <div className="bg-white rounded-3xl border-2 border-[#e5cd8d] shadow-sm overflow-hidden">
-            <table className="w-full text-center">
-              <thead className="bg-[#fdfaf0] border-b-2 border-[#e5cd8d]">
-                <tr>
-                  <th className="py-6 w-[10%] text-[#666] font-black">번호</th>
-                  <th className="py-6 text-left px-8 text-[#666] font-black">제목</th>
-                  <th className="py-6 w-[15%] text-[#666] font-black">작성자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).length === 0 ? (
-                  <tr><td colSpan={3} className="py-24 text-gray-400 font-bold">게시글이 없습니다. '작성하기' 버튼을 눌러보세요.</td></tr>
-                ) : (
-                  posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).map(p => (
-                    <tr key={p.id} className="border-b border-gray-100 hover:bg-[#fdfaf0] transition-colors cursor-pointer" onClick={() => openViewModal(p.id)}>
-                      <td className="py-6 text-gray-400">{p.id}</td>
-                      <td className="py-6 text-left px-8 font-extrabold text-[#222]">{p.title}</td>
-                      <td className="py-6 text-gray-500 font-medium">{p.author}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            <div className="p-6 flex justify-end">
+            <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#d4bc7c] scrollbar-track-transparent">
+              <table className="w-full text-center">
+                <thead className="bg-[#fdfaf0] border-b-2 border-[#e5cd8d] sticky top-0 z-10">
+                  <tr>
+                    <th className="py-6 w-[10%] text-[#666] font-black">번호</th>
+                    <th className="py-6 text-left px-8 text-[#666] font-black">제목</th>
+                    <th className="py-6 w-[15%] text-[#666] font-black">작성자</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).length === 0 ? (
+                    <tr><td colSpan={3} className="py-24 text-gray-400 font-bold">게시글이 없습니다. '작성하기' 버튼을 눌러보세요.</td></tr>
+                  ) : (
+                    posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).map(p => (
+                      <tr key={p.id} className="border-b border-gray-100 hover:bg-[#fdfaf0] transition-colors cursor-pointer" onClick={() => openViewModal(p.id)}>
+                        <td className="py-6 text-gray-400">{p.id}</td>
+                        <td className="py-6 text-left px-8 font-extrabold text-[#222]">{p.title}</td>
+                        <td className="py-6 text-gray-500 font-medium">{p.author}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-6 flex justify-end bg-white border-t border-gray-100">
               <button className="px-10 py-3.5 bg-[#3b4890] text-white rounded-2xl font-black shadow-md hover:bg-[#2c366b] transition-all" onClick={() => { if (!user) { alert("로그인이 필요합니다."); return; } setIsWriteModalOpen(true); }}>새 글 작성하기</button>
             </div>
           </div>

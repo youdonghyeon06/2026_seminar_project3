@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-// 게시물 타입 정의
+// 게시글 타입 정의
+// status 추가: 일반, 추천, 질문 등 탭 분류용
 interface Post {
   id: number;
   title: string;
   content: string;
   author: string;
+  author_id: string;
   date: string;
   views: number;
+  category: string;
 }
 
 interface BookDetail {
@@ -34,7 +38,7 @@ export default function DetailPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const [posts, setPosts] = useState<Post[]>([]);
-  const [postCounter, setPostCounter] = useState(100000);
+  const [user, setUser] = useState<any>(null);
   const [book, setBook] = useState<BookDetail>({
     title: "제목 정보 없음",
     author: "저자 정보 없음",
@@ -50,6 +54,38 @@ export default function DetailPage() {
 
   // 현재 보고 있는 게시글 상태
   const [currentPost, setCurrentPost] = useState<Post | null>(null);
+
+  // 세션 정보 및 게시글 가져오기
+  useEffect(() => {
+    const fetchUserAndPosts = async () => {
+      // 세션 정보 확인
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+
+      // 게시글 데이터 가져오기 (해당 도서의 게시글만)
+      const bookTitle = searchParams.get("title") || "";
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("book_title", bookTitle)
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        setPosts(data.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          content: p.content,
+          author: p.nickname || p.author_email || "익명",
+          author_id: p.author_id,
+          date: new Date(p.created_at).toLocaleDateString(),
+          views: p.views || 0,
+          category: p.category || "일반"
+        })));
+      }
+    };
+
+    fetchUserAndPosts();
+  }, [searchParams]);
 
   useEffect(() => {
     const normalize = (value: string | null) => (value ?? "").trim();
@@ -74,27 +110,50 @@ export default function DetailPage() {
     setBook(nextBook);
   }, [searchParams]);
 
-  const currentUser = "youdonghyeon06";
-  const currentDate = "2026.04.03";
-
   // 글 등록 처리
-  const submitPost = () => {
+  const submitPost = async () => {
+    if (!user) {
+      alert("로그인이 필요한 서비스입니다.");
+      return;
+    }
+
     if (!titleInput.trim()) {
       alert("제목을 입력해주세요.");
       return;
     }
 
+    const { data, error } = await supabase
+      .from("posts")
+      .insert({
+        title: titleInput.trim(),
+        content: contentInput.trim(),
+        author_id: user.id,
+        author_email: user.email,
+        nickname: user.user_metadata?.nickname || user.email.split("@")[0],
+        book_title: book.title,
+        category: activeTab.split(" ")[1] || "일반", // 탭 이름에서 이모지 제외 시도
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error submitting post:", error);
+      alert("게시글 등록에 실패했습니다.");
+      return;
+    }
+
     const newPost: Post = {
-      id: postCounter,
-      title: titleInput.trim(),
-      content: contentInput.trim(),
-      author: currentUser,
-      date: currentDate,
+      id: data.id,
+      title: data.title,
+      content: data.content,
+      author: data.nickname || data.author_email,
+      author_id: data.author_id,
+      date: new Date(data.created_at).toLocaleDateString(),
       views: 0,
+      category: data.category,
     };
 
     setPosts([newPost, ...posts]);
-    setPostCounter((prev) => prev + 1);
 
     // 입력창 초기화 및 모달 닫기
     setTitleInput("");
@@ -103,9 +162,12 @@ export default function DetailPage() {
   };
 
   // 게시글 보기 처리
-  const openViewModal = (postId: number) => {
+  const openViewModal = async (postId: number) => {
     const postIndex = posts.findIndex((p) => p.id === postId);
     if (postIndex === -1) return;
+
+    // DB 조회수 증가
+    await supabase.rpc("increment_views", { post_id: postId });
 
     // 조회수 1 증가 (불변성 유지)
     const updatedPosts = [...posts];
@@ -232,7 +294,13 @@ export default function DetailPage() {
           </div>
           <button
             className="px-6 py-2 text-base font-bold bg-[#fdfaf0] border-2 border-[#e5cd8d] rounded-full text-[#555] hover:bg-[#e5cd8d] hover:text-[#333] transition-colors"
-            onClick={() => setIsWriteModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                alert("로그인이 필요한 서비스입니다.");
+                return;
+              }
+              setIsWriteModalOpen(true);
+            }}
           >
             글쓰기
           </button>

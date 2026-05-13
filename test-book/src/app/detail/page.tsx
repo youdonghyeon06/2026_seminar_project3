@@ -15,6 +15,22 @@ interface Post {
   views: number;
   category: string;
   rating?: number;
+  is_resolved?: boolean;
+}
+
+interface Comment {
+  id: number;
+  post_id: number;
+  author_id: string;
+  nickname: string;
+  content: string;
+  is_accepted: boolean;
+  created_at: string;
+}
+
+interface UserProfile {
+  points: number;
+  accepted_answers: number;
 }
 
 interface BookDetail {
@@ -37,6 +53,7 @@ export default function DetailPage() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>({ points: 96, accepted_answers: 44 });
   const [book, setBook] = useState<BookDetail>({
     title: "제목 정보 없음",
     author: "저자 정보 없음",
@@ -50,10 +67,65 @@ export default function DetailPage() {
   const [contentInput, setContentInput] = useState("");
   const [ratingInput, setRatingInput] = useState(5);
   const [currentPost, setCurrentPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentInput, setCommentInput] = useState("");
 
   const averageRating = posts.filter(p => p.category === "추천").length > 0 
     ? (posts.filter(p => p.category === "추천").reduce((acc, cur) => acc + (cur.rating || 0), 0) / posts.filter(p => p.category === "추천").length).toFixed(1)
     : "0.0";
+
+  const fetchComments = async (postId: number) => {
+    const { data } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+    if (data) setComments(data);
+  };
+
+  const submitComment = async () => {
+    if (!user || !currentPost) return;
+    if (user.id === currentPost.author_id) {
+      alert("본인의 질문에는 답변을 남길 수 없습니다.");
+      return;
+    }
+    if (!commentInput.trim()) return;
+
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({
+        post_id: currentPost.id,
+        author_id: user.id,
+        nickname: user.user_metadata?.nickname || user.email.split("@")[0],
+        content: commentInput.trim(),
+      })
+      .select()
+      .single();
+
+    if (error) { alert("답변 등록 실패"); return; }
+    setComments([...comments, data]);
+    setCommentInput("");
+  };
+
+  const acceptComment = async (commentId: number, answerAuthorId: string) => {
+    if (!user || !currentPost || user.id !== currentPost.author_id) {
+       alert("글쓴이만 채택할 수 있습니다.");
+       return;
+    }
+    
+    const { error } = await supabase.rpc("accept_answer", {
+      p_post_id: currentPost.id,
+      p_comment_id: commentId,
+      p_answer_author_id: answerAuthorId
+    });
+
+    if (error) { alert("채택 실패"); return; }
+    
+    setComments(comments.map(c => c.id === commentId ? { ...c, is_accepted: true } : c));
+    setPosts(posts.map(p => p.id === currentPost.id ? { ...p, is_resolved: true } : p));
+    setCurrentPost({ ...currentPost, is_resolved: true });
+    alert("채택되었습니다! 답변자에게 포인트가 지급되었습니다.");
+  };
 
   useEffect(() => {
     const fetchUserAndPosts = async () => {
@@ -77,8 +149,25 @@ export default function DetailPage() {
           date: new Date(p.created_at).toLocaleDateString(),
           views: p.views || 0,
           category: p.category || "일반",
-          rating: p.rating || 0
+          rating: p.rating || 0,
+          is_resolved: p.is_resolved || false,
         })));
+      }
+
+      // 유저 프로필(포인트) 가져오기
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("points, accepted_answers")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile) {
+          setUserProfile({
+            points: profile.points,
+            accepted_answers: profile.accepted_answers
+          });
+        }
       }
     };
     fetchUserAndPosts();
@@ -143,6 +232,9 @@ export default function DetailPage() {
     updated[postIndex].views += 1;
     setPosts(updated);
     setCurrentPost(updated[postIndex]);
+    if (updated[postIndex].category === "질문") {
+      fetchComments(postId);
+    }
     setIsViewModalOpen(true);
   };
 
@@ -176,20 +268,54 @@ export default function DetailPage() {
           ) : (
             <div className="w-[220px] h-[310px] bg-gray-200 rounded-2xl flex items-center justify-center text-gray-400 border-4 border-white">책 표지 없음</div>
           )}
-          <div className="max-w-[700px] min-h-[310px] flex-1 bg-[#fdf3cc] p-8 rounded-[40px] relative shadow-sm border-b-4 border-[#e5cd8d] flex flex-col justify-center">
-            <div className={`absolute top-6 right-8 text-3xl cursor-pointer transition-all ${isHeartActive ? "text-red-500 scale-110" : "text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.3)]"}`} onClick={() => setIsHeartActive(!isHeartActive)}>♥</div>
-            <h2 className="text-[32px] font-black mb-4 leading-tight text-[#222]">{book.title}</h2>
-            <div className="text-[17px] space-y-1.5 font-bold text-[#666] mb-6">
-              <p>저자: <span className="font-medium ml-1 text-[#333]">{book.author}</span></p>
-              <p>출판사: <span className="font-medium ml-1 text-[#333]">{book.publisher}</span></p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex text-[#f1c40f] text-3xl">
-                {[1,2,3,4,5].map(s => <span key={s}>{Number(averageRating) >= s ? "★" : Number(averageRating) >= s - 0.5 ? "★" : "☆"}</span>)}
+          
+          {activeTab === "질문" ? (
+            <div className="flex-1 flex h-[310px]">
+              {/* 포인트 및 유저 정보 카드 (디자인 가이드 반영) */}
+              <div className="w-[520px] bg-[#cfcfcf] rounded-xl overflow-hidden shadow-lg border-[3px] border-black flex">
+                <div className="w-[160px] p-4 flex flex-col items-center border-r-[3px] border-black shrink-0">
+                   <div className="w-20 h-20 bg-white rounded-full mb-3 flex items-center justify-center overflow-hidden border-2 border-gray-300 font-bold text-gray-400">
+                     {user?.user_metadata?.avatar_url ? (
+                       <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                     ) : (
+                       <span className="text-4xl">👤</span>
+                     )}
+                   </div>
+                   <span className="font-black text-xl mb-3">{user?.user_metadata?.nickname || user?.email?.split('@')[0] || "전재준"}</span>
+                   <button className="bg-[#d32f2f] text-white text-[15px] font-bold py-2 px-4 leading-tight text-center rounded-sm w-full">상품 교환하러<br/>가기</button>
+                </div>
+                <div className="flex-1 p-5 bg-[#f4ede1]">
+                  <div className="mb-4">
+                    <p className="text-3xl font-black mb-1">모은 포인트: <span className="text-red-600 font-black">{userProfile.points}</span></p>
+                    <p className="font-bold text-gray-700 text-sm">채택 받은 답변 수: {userProfile.accepted_answers}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-lg mb-2 text-gray-700">주요 활동 커뮤니티</h4>
+                    <ul className="list-disc list-inside font-bold text-gray-600 space-y-0.5">
+                      <li>토익</li>
+                      <li>수학</li>
+                      <li>소설</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <span className="text-2xl font-black text-[#222] mt-1">{averageRating}</span>
             </div>
-          </div>
+          ) : (
+            <div className="max-w-[700px] min-h-[310px] flex-1 bg-[#fdf3cc] p-8 rounded-[40px] relative shadow-sm border-b-4 border-[#e5cd8d] flex flex-col justify-center">
+              <div className={`absolute top-6 right-8 text-3xl cursor-pointer transition-all ${isHeartActive ? "text-red-500 scale-110" : "text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.3)]"}`} onClick={() => setIsHeartActive(!isHeartActive)}>♥</div>
+              <h2 className="text-[32px] font-black mb-4 leading-tight text-[#222]">{book.title}</h2>
+              <div className="text-[17px] space-y-1.5 font-bold text-[#666] mb-6">
+                <p>저자: <span className="font-medium ml-1 text-[#333]">{book.author}</span></p>
+                <p>출판사: <span className="font-medium ml-1 text-[#333]">{book.publisher}</span></p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex text-[#f1c40f] text-3xl">
+                  {[1,2,3,4,5].map(s => <span key={s}>{Number(averageRating) >= s ? "★" : Number(averageRating) >= s - 0.5 ? "★" : "☆"}</span>)}
+                </div>
+                <span className="text-2xl font-black text-[#222] mt-1">{averageRating}</span>
+              </div>
+            </div>
+          )}
         </section>
 
         <nav className="flex gap-4 mb-8">
@@ -225,6 +351,87 @@ export default function DetailPage() {
               </div>
             </div>
           </div>
+        ) : activeTab === "질문" ? (
+          <div className="flex gap-10">
+            <div className="flex-1 bg-white rounded-3xl border-2 border-[#e5cd8d] shadow-sm overflow-hidden flex flex-col">
+              <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#d4bc7c] scrollbar-track-transparent">
+                <table className="w-full text-center">
+                  <thead className="bg-[#fdfaf0] border-b-2 border-[#e5cd8d] sticky top-0 z-10">
+                    <tr>
+                      <th className="py-6 text-left px-8 text-[#666] font-black">제목</th>
+                      <th className="py-6 w-[20%] text-[#666] font-black">채택 여부</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts.filter(p => p.category === "질문").length === 0 ? (
+                      <tr><td colSpan={2} className="py-24 text-gray-400 font-bold">질문이 없습니다. 첫 질문을 남겨보세요!</td></tr>
+                    ) : (
+                      posts.filter(p => p.category === "질문").map(p => (
+                        <tr key={p.id} className="border-b border-gray-100 hover:bg-[#fdfaf0] transition-colors cursor-pointer group" onClick={() => openViewModal(p.id)}>
+                          <td className="py-6 text-left px-8">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-start gap-2">
+                                <span className="text-[#388ba8] font-black text-xl">Q</span>
+                                <span className="font-extrabold text-[#222] text-lg group-hover:text-[#388ba8] transition-colors">{p.title}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-6">
+                            {p.is_resolved ? (
+                              <div className="flex justify-center">
+                                <div className="w-12 h-12 bg-[#f7ce7a] rounded-full border-2 border-[#b8a268] flex items-center justify-center shadow-inner relative">
+                                   <div className="absolute -bottom-2 w-8 h-4 bg-[#f7ce7a] border-b-2 border-x-2 border-[#b8a268] clip-path-ribbon"></div>
+                                   <span className="text-xl">🏆</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-300 font-bold">대기중</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-6 flex justify-between items-center bg-white border-t border-gray-100">
+                <div className="bg-[#fdf3cc] px-6 py-2 rounded-xl border border-[#e5cd8d] flex items-center gap-4">
+                   <button className="text-[#d89345] font-black">글쓰기</button>
+                   <div className="h-4 w-[1px] bg-[#d89345]/30"></div>
+                   <select className="bg-transparent font-bold text-[#d89345] outline-none border-none cursor-pointer appearance-none pr-4">
+                     <option>최신순</option>
+                     <option>채택순</option>
+                   </select>
+                </div>
+                <button className="px-10 py-3.5 bg-[#3b4890] text-white rounded-2xl font-black shadow-md hover:bg-[#2c366b] transition-all" onClick={() => { if (!user) { alert("로그인이 필요합니다."); return; } setIsWriteModalOpen(true); }}>새 질문 작성하기</button>
+              </div>
+            </div>
+
+            {/* 질문게시판 규칙 사이드바 */}
+            <div className="w-[320px] bg-white p-8 rounded-xl border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,1)] relative self-start">
+               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-5xl">⚡</div>
+               <h3 className="text-2xl font-black mb-6 text-center border-b-4 border-black pb-2">질문게시판 규칙</h3>
+               <ul className="space-y-4 font-bold text-[#444] text-[15px] leading-relaxed">
+                 <li className="flex gap-2">
+                   <span>•</span>
+                   <span>답변이 채택되면 <span className="text-red-500 underline underline-offset-4">답변자는 4 포인트</span>를 받을 수 있습니다</span>
+                 </li>
+                 <li className="flex gap-2">
+                   <span>•</span>
+                   <span>무분별한 매크로 질문은 제재 대상입니다.</span>
+                 </li>
+                 <li className="flex gap-2">
+                   <span>•</span>
+                   <span>상호간의 예의를 지켜주세요</span>
+                 </li>
+               </ul>
+               <div className="mt-8 flex justify-center">
+                 <div className="w-16 h-16 border-4 border-black rounded-full flex items-center justify-center transform rotate-12 bg-[#f4ede1]">
+                    <span className="text-3xl">✏️</span>
+                 </div>
+               </div>
+            </div>
+          </div>
         ) : (
           <div className="bg-white rounded-3xl border-2 border-[#e5cd8d] shadow-sm overflow-hidden">
             <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#d4bc7c] scrollbar-track-transparent">
@@ -237,10 +444,10 @@ export default function DetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).length === 0 ? (
+                  {posts.filter(p => p.category === "일반").length === 0 ? (
                     <tr><td colSpan={3} className="py-24 text-gray-400 font-bold">게시글이 없습니다. '작성하기' 버튼을 눌러보세요.</td></tr>
                   ) : (
-                    posts.filter(p => p.category === (activeTab === "질문" ? "질문" : "일반")).map(p => (
+                    posts.filter(p => p.category === "일반").map(p => (
                       <tr key={p.id} className="border-b border-gray-100 hover:bg-[#fdfaf0] transition-colors cursor-pointer" onClick={() => openViewModal(p.id)}>
                         <td className="py-6 text-gray-400">{p.id}</td>
                         <td className="py-6 text-left px-8 font-extrabold text-[#222]">{p.title}</td>
@@ -293,7 +500,67 @@ export default function DetailPage() {
               </div>
               <button onClick={() => setIsViewModalOpen(false)} className="text-3xl text-gray-300 hover:text-gray-500 transition-colors">✕</button>
             </div>
-            <div className="min-h-[300px] max-h-[500px] overflow-y-auto text-xl leading-[1.8] text-[#444] whitespace-pre-wrap">{currentPost.content}</div>
+            <div className="min-h-[300px] max-h-[500px] overflow-y-auto text-xl leading-[1.8] text-[#444] whitespace-pre-wrap">
+              {currentPost.category === "질문" && (
+                <div className="flex gap-4 mb-8">
+                  <span className="text-4xl text-[#388ba8] font-black shrink-0">Q</span>
+                  <div className="bg-[#fdfaf0] p-6 rounded-2xl flex-1 border border-[#e5cd8d]">
+                     {currentPost.content}
+                  </div>
+                </div>
+              )}
+              {currentPost.category !== "질문" && currentPost.content}
+
+              {currentPost.category === "질문" && (
+                <div className="mt-12 space-y-8">
+                  <h3 className="text-2xl font-black border-l-8 border-[#388ba8] pl-4">답변 목록</h3>
+                  
+                  {comments.length === 0 ? (
+                    <div className="py-10 text-center text-gray-400 bg-gray-50 rounded-2xl">아직 등록된 답변이 없습니다.</div>
+                  ) : (
+                    comments.map(c => (
+                      <div key={c.id} className={`flex gap-4 ${c.is_accepted ? "relative" : ""}`}>
+                        <span className={`text-4xl ${c.is_accepted ? "text-[#d89345]" : "text-gray-300"} font-black shrink-0`}>A</span>
+                        <div className={`flex-1 p-6 rounded-2xl border-2 ${c.is_accepted ? "bg-[#fff9e6] border-[#d89345] shadow-md" : "bg-white border-gray-100"}`}>
+                           <div className="flex justify-between items-start mb-4">
+                             <div className="text-sm font-bold text-gray-500">{c.nickname} | {new Date(c.created_at).toLocaleDateString()}</div>
+                             {currentPost.author_id === user?.id && !currentPost.is_resolved && (
+                               <button 
+                                 onClick={() => acceptComment(c.id, c.author_id)}
+                                 className="px-4 py-1 text-sm bg-[#388ba8] text-white rounded-lg font-bold hover:bg-[#2c6d85]"
+                               >채택하기</button>
+                             )}
+                             {c.is_accepted && <span className="text-[#d89345] font-black text-sm bg-white px-3 py-1 rounded-full border border-[#d89345]">채택된 답변</span>}
+                           </div>
+                           <div className="text-lg text-[#222]">
+                             {c.content}
+                           </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {/* 답변 작성 란 */}
+                  {!currentPost.is_resolved && (
+                    <div className="bg-gray-50 p-6 rounded-2xl mt-10 border-2 border-dashed border-gray-200">
+                      <h4 className="font-black mb-4 flex items-center gap-2"><span>💬</span> 답변 남기기</h4>
+                      <textarea 
+                        value={commentInput}
+                        onChange={(e) => setCommentInput(e.target.value)}
+                        className="w-full h-32 p-4 rounded-xl border-2 border-white outline-none focus:border-[#388ba8] transition-all resize-none mb-4 font-bold text-lg"
+                        placeholder="질문에 대한 답변을 입력해 주세요."
+                      ></textarea>
+                      <div className="flex justify-end">
+                        <button 
+                          onClick={submitComment}
+                          className="px-8 py-3 bg-[#388ba8] text-white rounded-xl font-black hover:opacity-90 transition-all shadow-md"
+                        >답변 등록</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="mt-8 flex justify-end">
               <button className="px-10 py-3.5 bg-gray-100 text-[#555] rounded-xl font-black hover:bg-gray-200 transition-all" onClick={() => setIsViewModalOpen(false)}>닫기</button>
             </div>
